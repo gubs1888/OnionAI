@@ -1,0 +1,26 @@
+# ===========================================================
+# ML requirements (TEAM A owns this file) — Python 3.10–3.12
+# Install into a SEPARATE environment from the backend if you like:
+#   python -m venv .venv-ml && pip install -r ml/requirements.txt
+#
+# NOTE: the backend does NOT need this file. The backend talks to
+# app/services/inference.py which lazy-imports ultralytics only when
+# DEMO_MODE=false and a trained model exists.
+# ===========================================================
+
+# --- Deep learning ---
+torch>=2.2.0
+torchvision>=0.17.0
+ultralytics>=8.2.0          # YOLO11n trainer / inference
+
+# --- Imaging ---
+opencv-python>=4.9.0
+numpy>=1.26.0
+Pillow>=10.2.0
+
+# --- Analysis ---
+scikit-learn>=1.4.0         # metrics, splits, clustering experiments
+PyYAML>=6.0.1
+
+# --- Testing ---
+pytest>=8.0.0

@@ -1,0 +1,67 @@
+# ==============================================================
+# Onion Quality AI — local development orchestration
+#
+# Goal:  git clone -> cp .env.example .env -> docker compose up
+#        and the database + backend are running.
+#
+# The mobile app intentionally does NOT run in Docker — Expo dev
+# servers need access to simulators/physical devices on the host.
+# Run it on your machine:  cd mobile && npm install && npx expo start
+# ==============================================================
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: onion-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-onion}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-onion_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-onion_quality}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-onion} -d ${POSTGRES_DB:-onion_quality}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    container_name: onion-backend
+    environment:
+      # Inside the compose network the DB host is the service name "postgres".
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-onion}:${POSTGRES_PASSWORD:-onion_pass}@postgres:5432/${POSTGRES_DB:-onion_quality}
+      DEMO_MODE: ${DEMO_MODE:-true}
+      DEBUG: ${DEBUG:-true}
+      JWT_SECRET: ${JWT_SECRET:-change-me-dev-secret-only}
+      API_PREFIX: ${API_PREFIX:-/api}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      MODEL_PATH: /models/onion_yolo.pt
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      # Uploaded images / generated reports persist on the host.
+      - ./backend/uploads:/app/uploads
+      - ./backend/reports:/app/reports
+      # Optional: mount trained weights so DEMO_MODE=false works.
+      # - ./ml/models:/models:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/api/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ------------------------------------------------------------
+  # NOT included on purpose (keep Docker simple):
+  #   - mobile  : Expo runs on the host (needs simulator/device)
+  #   - ml      : training runs on the host / GPU machine
+  # ------------------------------------------------------------
+
+volumes:
+  pgdata:

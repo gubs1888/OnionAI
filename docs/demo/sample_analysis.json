@@ -1,0 +1,23 @@
+{
+  "_READ_ME": "DEMO DATA — synthetic sample used for UI/screen testing and the presentation dry run. This is NOT real AI/model output. Never present it as real accuracy.",
+  "batch_id": "DEMO-001",
+  "total_onions": 50,
+  "healthy": 42,
+  "damaged": 4,
+  "rotten": 2,
+  "sprouted": 1,
+  "undersized": 1,
+  "defect_percentage": 16.0,
+  "quality_score": 79.8,
+  "grade": "B",
+  "urs_percentage": 8.0,
+  "confidence": 91.7,
+  "reasons": [
+    "8/50 onions non-healthy (defect 16.0%) -9.6 pts",
+    "URS 8.0% -2.0 pts",
+    "NOTE: grade per OUR MVP thresholds (mvp_scoring), not an official standard."
+  ],
+  "is_demo": true,
+  "model_version": "demo-v0",
+  "created_at": "2026-09-07T10:00:00+00:00"
+}

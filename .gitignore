@@ -1,0 +1,58 @@
+# ==========================================================
+# Onion Quality AI — root .gitignore
+# ==========================================================
+
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ---------- Environment & secrets (NEVER commit real .env) ----------
+.env
+.env.local
+.env.*.local
+
+# ---------- Node / Expo / React Native ----------
+node_modules/
+.expo/
+web-build/
+dist/
+npm-debug.log*
+yarn-error.log*
+package-lock.json.bak
+
+# ---------- Databases (local dev) ----------
+*.db
+*.sqlite3
+
+# ---------- Runtime artifacts ----------
+backend/uploads/*
+!backend/uploads/.gitkeep
+backend/reports/*
+!backend/reports/.gitkeep
+
+# ---------- ML artifacts ----------
+# Trained weights are too big for plain git — use Git LFS or a shared drive.
+ml/models/*.pt
+ml/models/*.onnx
+ml/models/*.safetensors
+ml/runs/
+ml/models/eval_report.json
+ml/dataset/raw/*
+ml/dataset/processed/*
+!ml/dataset/raw/.gitkeep
+!ml/dataset/processed/.gitkeep
+
+# ---------- OS / Editor ----------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

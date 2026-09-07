@@ -1,0 +1,48 @@
+{
+  "_meta": {
+    "purpose": "Configuration for the grading engine + URS computation.",
+    "owner": "TEAM B (logic) / TEAM D (verified standard values)",
+    "rule": "ALL official-looking numbers below are PLACEHOLDERS until TEAM D verifies them against the applicable official standard / problem statement. Never present them as official grades.",
+    "how_to_edit": "Tune only `mvp_scoring`. Do not move values into `official_standards_TO_VERIFY` until verified and signed off."
+  },
+
+  "mvp_scoring": {
+    "_note": "OUR OWN transparent MVP heuristic. Used in production of demo results.",
+    "weights": {
+      "defect": 0.60,
+      "urs": 0.25,
+      "confidence": 0.15,
+      "_sum_check": "must equal 1.0"
+    },
+    "low_confidence_threshold": 0.70,
+    "grade_thresholds": {
+      "A": 80,
+      "B": 60,
+      "C": 40,
+      "D": 0
+    },
+    "quality_score_floor": 0,
+    "quality_score_ceiling": 100
+  },
+
+  "urs": {
+    "_note": "URS DEFINITION IS NOT VERIFIED. Default interpretation: share of onions that are Undersized / Rotten / Sprouted. The category list below IS the formula — edit here, not in code.",
+    "categories": ["undersized", "rotten", "sprouted"],
+    "status": "TO VERIFY against the applicable problem statement / official standard"
+  },
+
+  "size_thresholds": {
+    "_note": "Bulb diameter classification. Values are PLACEHOLDERS — verify before official use.",
+    "min_size_mm": 45,
+    "status": "TO VERIFY"
+  },
+
+  "official_standards_TO_VERIFY": {
+    "_note": "DO NOT USE. Reserved for verified official values (grade limits, defect tolerances, size categories). TEAM D fills this after checking the applicable standard.",
+    "status": "NOT VERIFIED — intentionally unused by code",
+    "grade_thresholds": null,
+    "defect_limits": null,
+    "size_categories_mm": null,
+    "source_reference": null
+  }
+}

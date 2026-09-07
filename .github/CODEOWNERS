@@ -1,0 +1,22 @@
+# Code ownership (replace @handles with real GitHub usernames after the repo is pushed)
+# Contract files require architect review on every change.
+
+# TEAM A — ML / Computer Vision
+/ml/ @team-a-ml
+
+# TEAM B — Backend
+/backend/ @team-b-backend
+/docker-compose.yml @team-b-backend @lead-architect
+
+# TEAM C — Mobile / Frontend
+/mobile/ @team-c-mobile
+
+# TEAM D — QA / Docs
+/docs/ @team-d-qa
+/scripts/ @team-d-qa
+
+# Cross-team contracts — architect must review
+/docs/api/API_CONTRACT.md @lead-architect @team-a-ml @team-b-backend @team-c-mobile
+/backend/app/schemas/ @lead-architect @team-b-backend @team-c-mobile
+/mobile/types/assessment.ts @lead-architect @team-b-backend @team-c-mobile
+/backend/config/grading_config.json @lead-architect @team-b-backend @team-d-qa

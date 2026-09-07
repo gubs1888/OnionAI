@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "Onion Quality AI",
+    "slug": "onion-quality-ai",
+    "version": "0.1.0",
+    "scheme": "onionqualityai",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.sih2026.onionqualityai"
+    },
+    "android": {
+      "package": "com.sih2026.onionqualityai",
+      "permissions": ["CAMERA"]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Onion Quality AI to use the camera to photograph onion batches for quality assessment."
+        }
+      ],
+      "expo-image-picker"
+    ]
+  }
+}

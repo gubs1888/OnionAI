@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install backend deps
+        run: pip install -r backend/requirements.txt
+      - name: Run backend tests
+        run: python -m pytest backend/tests -q
+
+  ml-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      # Only light deps: the ML contract tests run in DEMO mode without torch.
+      - run: pip install pytest numpy Pillow
+      - name: Run ML contract tests
+        run: python -m pytest ml/tests -q
+
+  mobile-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install mobile deps
+        working-directory: mobile
+        run: npm install --no-audit --no-fund
+      - name: TypeScript strict typecheck
+        working-directory: mobile
+        run: npx tsc --noEmit
