@@ -134,6 +134,7 @@ onion-quality-ai/
 
 ## Key documents
 
+* `docs/NEXT_STEPS.md` — **sprint plan to the 11 Sep demo (start here every morning)**
 * `ARCHITECTURE.md` — module boundaries, data flow, design decisions
 * `docs/api/API_CONTRACT.md` — **the** JSON contracts between teams
 * `DEVELOPMENT.md` — setup, commands, troubleshooting
