@@ -101,9 +101,16 @@ def analyze_image_endpoint(
                 detail={"code": "FILE_TOO_LARGE", "message": "Max upload size is 15 MB."},
             )
 
+    # Store the path relative to the backend root when possible (nice for
+    # logs/portability); fall back to the absolute path for external dirs.
+    try:
+        stored_ref = str(stored_path.relative_to(BACKEND_ROOT))
+    except ValueError:
+        stored_ref = str(stored_path)
+
     image_row = Image(
         batch_id=batch.id,
-        file_path=str(stored_path.relative_to(BACKEND_ROOT)),
+        file_path=stored_ref,
         original_filename=original_name,
         status="processing",
     )

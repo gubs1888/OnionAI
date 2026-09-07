@@ -6,6 +6,8 @@ the developer's real database. DEMO MODE is forced ON for determinism.
 """
 
 import os
+import tempfile
+from pathlib import Path
 
 # MUST be set before app modules are imported (Settings reads env at import).
 os.environ["DEMO_MODE"] = "true"
@@ -19,6 +21,7 @@ from sqlalchemy.orm import sessionmaker  # noqa: E402
 from sqlalchemy.pool import StaticPool  # noqa: E402
 
 from app.api.deps import get_db  # noqa: E402
+from app.config import settings  # noqa: E402
 from app.db.database import Base  # noqa: E402
 from app.db.base import (  # noqa: E402,F401  (registers all models)
     Assessment,
@@ -30,6 +33,13 @@ from app.db.base import (  # noqa: E402,F401  (registers all models)
 )
 from app.main import app  # noqa: E402
 from app.services.auth import ensure_demo_user  # noqa: E402
+
+# Redirect runtime dirs so tests never pollute the developer's uploads/reports.
+_TEST_FILES = tempfile.mkdtemp(prefix="onion-test-")
+settings.upload_dir = Path(_TEST_FILES) / "uploads"    # type: ignore[assignment]
+settings.report_dir = Path(_TEST_FILES) / "reports"    # type: ignore[assignment]
+settings.upload_dir.mkdir(parents=True, exist_ok=True)
+settings.report_dir.mkdir(parents=True, exist_ok=True)
 
 _test_engine = create_engine(
     "sqlite://",  # in-memory
