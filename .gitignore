@@ -56,3 +56,6 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# ---------- Raw dataset archives (live on Drive, not in git) ----------
+/incoming/
