@@ -26,9 +26,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      # Only light deps: the ML contract tests run in DEMO mode without torch.
-      - run: pip install pytest numpy Pillow
-      - name: Run ML contract tests
+      - name: Install ML dependencies (Heavy)
+        run: pip install -r ml/requirements.txt
+      - name: Run ML tests
         run: python -m pytest ml/tests -q
 
   mobile-typecheck:
