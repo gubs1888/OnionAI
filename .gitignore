@@ -41,6 +41,7 @@ backend/reports/*
 # ---------- ML artifacts ----------
 # Trained weights are too big for plain git — use Git LFS or a shared drive.
 ml/models/*.pt
+!ml/models/onion_yolo.pt
 ml/models/*.onnx
 ml/models/*.safetensors
 ml/runs/
