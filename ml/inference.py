@@ -68,7 +68,13 @@ class OnionDetector:
         self._demo = False
 
         if self.model_path.exists():
-            self._load()                      # may raise ImportError -> helpful msg
+            try:
+                self._load()                  # may raise ImportError -> helpful msg
+            except ImportError:
+                if allow_demo:
+                    self._demo = True
+                else:
+                    raise
         elif allow_demo:
             self._demo = True                 # clearly-marked DEMO MODE
         else:
@@ -120,6 +126,8 @@ class OnionDetector:
     def _yolo_detections(self, path: Path) -> list[dict]:
         results = self._model.predict(source=str(path), conf=self.conf_threshold, verbose=False)
         detections: list[dict] = []
+        if not results or not hasattr(results[0], "boxes") or results[0].boxes is None:
+            return detections
         for box in results[0].boxes:
             cls_id = int(box.cls.item())
             name = self._model.names.get(cls_id, CLASS_NAMES.get(cls_id, "onion"))

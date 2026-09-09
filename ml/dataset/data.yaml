@@ -10,7 +10,7 @@
 
 # Dataset root — resolved relative to this file. Point `path` at an absolute
 # location if your data lives outside the repo (e.g. an external drive).
-path: .
+path: ml/dataset
 train: images/train
 val: images/val
 

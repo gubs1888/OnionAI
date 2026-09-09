@@ -11,7 +11,7 @@ ALLOWED_CLASSES = set(CLASS_NAMES.values())
 def _detections(tmp_path: Path) -> list[dict]:
     img = tmp_path / "x.jpg"
     img.write_bytes(b"\xff\xd8\xff\xe0schema-test" * 200)
-    return OnionDetector(allow_demo=True).detect(img)["detections"]
+    return OnionDetector(model_path=tmp_path / "missing.pt", allow_demo=True).detect(img)["detections"]
 
 
 def test_contract_keys(tmp_path):
@@ -43,7 +43,17 @@ def test_bbox_structure(tmp_path):
 def test_top_level_contract_keys(tmp_path):
     img = tmp_path / "y.jpg"
     img.write_bytes(b"\xff\xd8\xff\xe0top-level" * 100)
-    result = OnionDetector(allow_demo=True).detect(img)
+    result = OnionDetector(model_path=tmp_path / "missing.pt", allow_demo=True).detect(img)
     assert {"detections", "model_version", "is_demo", "inference_ms"} <= set(result.keys())
     assert isinstance(result["is_demo"], bool)
     assert isinstance(result["inference_ms"], (int, float))
+
+
+def test_real_model_output_schema():
+    sample_img = Path("docs/demo/sample_images/sample_onions_01.jpg")
+    if sample_img.exists():
+        result = OnionDetector(allow_demo=False).detect(sample_img)
+        assert {"detections", "model_version", "is_demo", "inference_ms"} <= set(result.keys())
+        assert result["is_demo"] is False
+        for det in result["detections"]:
+            assert set(det.keys()) == {"class_name", "class_id", "confidence", "bbox"}

@@ -8,7 +8,7 @@ import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, Text, V
 import { Link, useRouter } from "expo-router";
 
 import BatchCard from "../components/BatchCard";
-import { healthCheck, listBatches } from "../services/api";
+import { healthCheck, listBatches, clearBatches } from "../services/api";
 import { Batch, HealthInfo } from "../types/assessment";
 
 export default function HomeScreen() {
@@ -52,7 +52,13 @@ export default function HomeScreen() {
         </Pressable>
       </Link>
 
-      <Text style={styles.sectionTitle}>Recent batches</Text>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Recent batches</Text>
+        <Pressable onPress={async () => { await clearBatches(); refresh(); }}>
+          <Text style={styles.clearText}>Clear all</Text>
+        </Pressable>
+      </View>
+
       {loading ? (
         <ActivityIndicator style={{ marginTop: 16 }} color="#14532D" />
       ) : (
@@ -105,7 +111,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   primaryButtonText: { color: "#fff", fontSize: 18, fontWeight: "700" },
-  sectionTitle: { fontSize: 18, fontWeight: "700", marginTop: 28, marginBottom: 12, color: "#111827" },
+  sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 28, marginBottom: 12 },
+  sectionTitle: { fontSize: 18, fontWeight: "700", color: "#111827" },
+  clearText: { fontSize: 13, color: "#EF4444", fontWeight: "600" },
   empty: { color: "#9CA3AF", textAlign: "center", marginTop: 8 },
   footerNote: { marginTop: 24, fontSize: 11, color: "#9CA3AF", textAlign: "center" },
 });

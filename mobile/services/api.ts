@@ -19,7 +19,10 @@ import {
 
 // EXPO_PUBLIC_* env vars are inlined at start time (see .env.example).
 export const API_BASE_URL: string =
-  process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000";
+  process.env.EXPO_PUBLIC_API_URL ??
+  (typeof window !== "undefined"
+    ? `${window.location.protocol}//${window.location.hostname}:8000`
+    : "http://localhost:8000");
 
 const TIMEOUT_MS = 15_000;
 
@@ -84,6 +87,26 @@ let lastAssessment: Assessment | null = null;
 // Core request helper
 // ---------------------------------------------------------------------------
 
+/** Error from the backend (server was reachable but returned a non-2xx). */
+export class ApiError extends Error {
+  code: string;
+  status: number;
+  constructor(status: number, code: string, message: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
+/** True network failure — backend unreachable, timeout, DNS, etc. */
+export class NetworkError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NetworkError";
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -91,11 +114,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const res = await fetch(`${API_BASE_URL}${path}`, { ...init, signal: controller.signal });
     if (!res.ok) {
       const body = await res.json().catch(() => null);
+      const code = body?.detail?.code ?? body?.error?.code ?? "UNKNOWN";
       const message =
-        body && body.error ? body.error.message ?? `HTTP ${res.status}` : `HTTP ${res.status}`;
-      throw new Error(message);
+        body?.detail?.message ?? body?.error?.message ?? `HTTP ${res.status}`;
+      throw new ApiError(res.status, code, message);
     }
     return (await res.json()) as T;
+  } catch (err) {
+    if (err instanceof ApiError) throw err; // re-throw server errors as-is
+    // Everything else is a network-level failure
+    throw new NetworkError((err as Error).message ?? "Network request failed");
   } finally {
     clearTimeout(timer);
   }
@@ -153,15 +181,29 @@ export async function listBatches(): Promise<Batch[]> {
   }
 }
 
+/** DELETE /api/batches */
+export async function clearBatches(): Promise<void> {
+  try {
+    await request("/api/batches", { method: "DELETE" });
+  } catch (err) {
+    console.warn("[api] clearBatches failed:", (err as Error).message);
+  }
+}
+
 /**
  * POST /api/analyze — multipart upload.
- * Falls back to a MOCK assessment so the demo flow never dead-ends.
+ * Falls back to MOCK only when the backend is unreachable (NetworkError).
+ * Server errors (422 NOTHING_DETECTED, etc.) are re-thrown to the caller.
  */
 export async function analyzeImage(imageUri: string, batchCode?: string): Promise<AnalysisResponse> {
   try {
     const form = new FormData();
-    // React Native FormData file descriptor (not the DOM Blob shape).
-    form.append("image", { uri: imageUri, name: "onions.jpg", type: "image/jpeg" } as unknown as Blob);
+    if (typeof window !== "undefined" && typeof window.fetch === "function" && (imageUri.startsWith("data:") || imageUri.startsWith("blob:"))) {
+      const blob = await fetch(imageUri).then((r) => r.blob());
+      form.append("image", blob, "onions.jpg");
+    } else {
+      form.append("image", { uri: imageUri, name: "onions.jpg", type: "image/jpeg" } as unknown as Blob);
+    }
     if (batchCode) form.append("batch_id", batchCode);
     const result = await request<AnalysisResponse>("/api/analyze", {
       method: "POST",
@@ -170,7 +212,13 @@ export async function analyzeImage(imageUri: string, batchCode?: string): Promis
     lastAssessment = result;
     return result;
   } catch (err) {
-    console.warn("[api] analyzeImage failed — MOCK fallback:", (err as Error).message);
+    // Server returned a real error (e.g. 422 NOTHING_DETECTED) — propagate it
+    if (err instanceof ApiError) {
+      console.warn("[api] analyzeImage server error:", err.code, err.message);
+      throw err;
+    }
+    // Backend truly unreachable — MOCK fallback
+    console.warn("[api] analyzeImage network error — MOCK fallback:", (err as Error).message);
     const mock = {
       ...buildMockAssessment(batchCode ?? "DEMO-001"),
       image_id: 0,

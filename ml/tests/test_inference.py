@@ -15,7 +15,7 @@ def _tmp_image(tmp_path: Path, name: str = "img.jpg") -> Path:
 
 def test_detector_falls_back_to_demo(tmp_path):
     """No model file + allow_demo=True => demo mode, still a working detector."""
-    detector = OnionDetector(allow_demo=True)  # repo has no onion_yolo.pt yet
+    detector = OnionDetector(model_path=tmp_path / "missing.pt", allow_demo=True)
     result = detector.detect(_tmp_image(tmp_path))
     assert detector.is_demo is True
     assert result["is_demo"] is True
@@ -31,7 +31,7 @@ def test_detector_without_demo_raises(tmp_path):
 
 
 def test_demo_is_deterministic(tmp_path):
-    detector = OnionDetector(allow_demo=True)
+    detector = OnionDetector(model_path=tmp_path / "missing.pt", allow_demo=True)
     img = _tmp_image(tmp_path)
     r1 = detector.detect(img)
     r2 = detector.detect(img)
@@ -39,11 +39,22 @@ def test_demo_is_deterministic(tmp_path):
 
 
 def test_different_images_give_different_demo_results(tmp_path):
-    detector = OnionDetector(allow_demo=True)
+    detector = OnionDetector(model_path=tmp_path / "missing.pt", allow_demo=True)
     a = tmp_path / "a.jpg"; a.write_bytes(b"image-A" * 500)
     b = tmp_path / "b.jpg"; b.write_bytes(b"image-B" * 500)
     # 10-60 random detections each: collision probability is negligible.
     assert detector.detect(a)["detections"] != detector.detect(b)["detections"]
+
+
+def test_real_model_inference(tmp_path):
+    sample_img = Path("docs/demo/sample_images/sample_onions_01.jpg")
+    if sample_img.exists():
+        detector = OnionDetector(allow_demo=False)
+        result = detector.detect(sample_img)
+        assert detector.is_demo is False
+        assert result["is_demo"] is False
+        assert "yolo11n" in result["model_version"]
+        assert isinstance(result["detections"], list)
 
 
 def test_missing_image_raises(tmp_path):

@@ -32,7 +32,7 @@ from app.services.inference import InferenceError
 
 router = APIRouter(tags=["analysis"])
 
-ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png"}
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 MAX_UPLOAD_BYTES = 15 * 1024 * 1024  # 15 MB
 
 
@@ -65,6 +65,8 @@ def analyze_image_endpoint(
     # 1. Validate upload -----------------------------------------------------
     original_name = image.filename or "upload.jpg"
     ext = Path(original_name).suffix.lower()
+    if not ext or ext == ".":
+        ext = ".jpg"
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

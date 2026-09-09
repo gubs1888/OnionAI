@@ -96,24 +96,25 @@ def _yolo_analyze(image_path: str) -> dict:
     model = _load_model()
     start = time.perf_counter()
     try:
-        results = model.predict(source=image_path, conf=0.25, verbose=False)
+        results = model.predict(source=image_path, conf=0.15, verbose=False)
     except Exception as exc:  # never leak a fake result on failure
         raise InferenceError(f"YOLO inference failed: {exc}") from exc
     elapsed_ms = (time.perf_counter() - start) * 1000
 
     detections: list[dict] = []
-    result = results[0]
-    for box in result.boxes:
-        cls_id = int(box.cls.item())
-        name = model.names.get(cls_id, CLASS_NAMES.get(cls_id, "onion"))
-        detections.append(
-            {
-                "class_name": str(name).lower(),
-                "class_id": CLASS_NAME_TO_ID.get(str(name).lower(), cls_id),
-                "confidence": round(float(box.conf.item()), 4),
-                "bbox": [round(float(v), 1) for v in box.xyxy.tolist()[0]],
-            }
-        )
+    if results:  # safety: results may be empty on corrupt / zero-pixel images
+        result = results[0]
+        for box in result.boxes:
+            cls_id = int(box.cls.item())
+            name = model.names.get(cls_id, CLASS_NAMES.get(cls_id, "onion"))
+            detections.append(
+                {
+                    "class_name": str(name).lower(),
+                    "class_id": CLASS_NAME_TO_ID.get(str(name).lower(), cls_id),
+                    "confidence": round(float(box.conf.item()), 4),
+                    "bbox": [round(float(v), 1) for v in box.xyxy.tolist()[0]],
+                }
+            )
 
     return {
         "detections": detections,

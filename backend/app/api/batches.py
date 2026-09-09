@@ -13,7 +13,7 @@ from app.models.assessment import Assessment
 from app.models.batch import Batch
 from app.models.user import User
 from app.schemas.analysis import AssessmentOut, to_assessment_out
-from app.schemas.batch import BatchCreate, BatchOut
+from app.schemas.batch import BatchCreate, BatchOut, BatchUpdate
 
 router = APIRouter(prefix="/batches", tags=["batches"])
 
@@ -111,4 +111,34 @@ def get_batch_assessment(batch_id: str, db: Session = Depends(get_db)) -> Assess
     return to_assessment_out(assessment)
 
 
-# TODO(Team B, post-MVP): PATCH /batches/{id} for renaming/closing batches.
+@router.patch(
+    "/{batch_id}",
+    response_model=BatchOut,
+    summary="Update a batch (rename/close/notes)",
+    description="Updates one or more fields of a batch (name, variety, source, notes, status).",
+    responses={404: {"description": "Batch not found"}},
+)
+def update_batch(
+    batch_id: str,
+    payload: BatchUpdate,
+    db: Session = Depends(get_db),
+) -> BatchOut:
+    batch = require_batch(db, batch_id)
+    update_data = payload.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(batch, field, value)
+    db.commit()
+    db.refresh(batch)
+    return BatchOut.model_validate(batch)
+
+
+@router.delete(
+    "",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Clear all batches",
+    description="Deletes all batches from the database.",
+)
+def clear_all_batches(db: Session = Depends(get_db)):
+    db.query(Batch).delete()
+    db.commit()
+    return None

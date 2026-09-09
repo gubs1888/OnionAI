@@ -15,8 +15,9 @@ import { Assessment } from "../types/assessment";
 
 export default function ResultsScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ batchCode?: string }>();
-  const batchCode = typeof params.batchCode === "string" ? params.batchCode : "DEMO-001";
+  const params = useLocalSearchParams<{ batchCode?: string | string[] }>();
+  const pBatchCode = Array.isArray(params.batchCode) ? params.batchCode[0] : params.batchCode;
+  const batchCode = pBatchCode || "DEMO-001";
   const [assessment, setAssessment] = useState<Assessment | null>(null);
 
   useEffect(() => {
@@ -41,12 +42,35 @@ export default function ResultsScreen() {
         </View>
       ) : null}
 
+      {assessment.confidence < 70 ? (
+        <View style={styles.warningBanner}>
+          <Text style={styles.warningBannerText}>
+            ⚠ LOW CONFIDENCE ({assessment.confidence}%) — Please recapture image or verify manually
+          </Text>
+        </View>
+      ) : null}
+
       <View style={styles.headerRow}>
         <GradeBadge grade={assessment.grade} />
         <View style={styles.headerText}>
           <Text style={styles.batch}>{assessment.batch_id}</Text>
           <Text style={styles.score}>{assessment.quality_score.toFixed(1)} / 100</Text>
           <Text style={styles.model}>{assessment.model_version}</Text>
+        </View>
+      </View>
+
+      <View style={styles.metricsRow}>
+        <View style={styles.metricCard}>
+          <Text style={styles.metricLabel}>Grade A</Text>
+          <Text style={styles.metricValue}>
+            {assessment.total_onions > 0 
+              ? ((assessment.healthy / assessment.total_onions) * 100).toFixed(1) 
+              : 0}%
+          </Text>
+        </View>
+        <View style={styles.metricCard}>
+          <Text style={styles.metricLabel}>URS</Text>
+          <Text style={styles.metricValue}>{assessment.urs_percentage.toFixed(1)}%</Text>
         </View>
       </View>
 
@@ -83,7 +107,7 @@ export default function ResultsScreen() {
       >
         <Text style={styles.primaryText}>View report →</Text>
       </Pressable>
-      <Pressable style={styles.secondary} onPress={() => router.dismissTo("/")}>
+      <Pressable style={styles.secondary} onPress={() => router.replace("/")}>
         <Text style={styles.secondaryText}>Analyze another batch</Text>
       </Pressable>
     </ScrollView>
@@ -102,11 +126,29 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   demoBannerText: { color: "#fff", fontWeight: "800", textAlign: "center", fontSize: 13 },
+  warningBanner: {
+    backgroundColor: "#FBBF24",
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 16,
+  },
+  warningBannerText: { color: "#000", fontWeight: "700", textAlign: "center", fontSize: 13 },
   headerRow: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
   headerText: { marginLeft: 16 },
   batch: { fontSize: 16, fontWeight: "700", color: "#111827" },
   score: { fontSize: 22, fontWeight: "800", color: "#14532D" },
   model: { fontSize: 11, color: "#9CA3AF" },
+  metricsRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 16 },
+  metricCard: {
+    flex: 1,
+    backgroundColor: "#F3F4F6",
+    borderRadius: 12,
+    padding: 16,
+    marginHorizontal: 4,
+    alignItems: "center",
+  },
+  metricLabel: { fontSize: 14, color: "#4B5563", fontWeight: "600", marginBottom: 4 },
+  metricValue: { fontSize: 22, color: "#16A34A", fontWeight: "800" },
   sectionTitle: { fontSize: 16, fontWeight: "700", color: "#111827", marginTop: 20, marginBottom: 8 },
   reason: { fontSize: 12, color: "#4B5563", lineHeight: 18 },
   primary: {

@@ -22,6 +22,10 @@ import shutil
 import sys
 from pathlib import Path
 
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
 from ml.config import (
     BATCH_SIZE,
     DATA_YAML,
@@ -74,7 +78,17 @@ def main() -> None:
         batch=args.batch,
         seed=SEED,
         name=args.name,
-        # TODO(TEAM A): tune augmentation for onion photos (hsv, mosaic, close-up crops)
+        # Augmentation tuned for onion photos (including minority defect classes)
+        hsv_h=0.015,
+        hsv_s=0.7,
+        hsv_v=0.4,
+        degrees=10.0,
+        translate=0.1,
+        scale=0.5,
+        fliplr=0.5,
+        mosaic=1.0,
+        mixup=0.1,
+        copy_paste=0.1,
     )
 
     # Publish the artifact at the contract path the backend expects.

@@ -57,3 +57,13 @@ def test_batch_creation_validation(client, bad):
     res = client.post("/api/batches", json=bad)
     assert res.status_code == 422
     assert res.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_batch_patch_update(client):
+    created = client.post("/api/batches", json={"name": "Initial Name"}).json()
+    batch_code = created["batch_code"]
+    res = client.patch(f"/api/batches/{batch_code}", json={"name": "Updated Name", "status": "closed"})
+    assert res.status_code == 200
+    updated = res.json()
+    assert updated["name"] == "Updated Name"
+    assert updated["status"] == "closed"

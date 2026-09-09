@@ -12,11 +12,11 @@ import { absoluteUrl, generateReport } from "../services/api";
 import { ReportInfo } from "../types/assessment";
 
 export default function ReportScreen() {
-  const params = useLocalSearchParams<{ assessmentId?: string; batchCode?: string }>();
-  const assessmentId = Number(
-    typeof params.assessmentId === "string" ? params.assessmentId : "0"
-  );
-  const batchCode = typeof params.batchCode === "string" ? params.batchCode : "-";
+  const params = useLocalSearchParams<{ assessmentId?: string | string[]; batchCode?: string | string[] }>();
+  const pAssessmentId = Array.isArray(params.assessmentId) ? params.assessmentId[0] : params.assessmentId;
+  const assessmentId = Number(pAssessmentId || "0");
+  const pBatchCode = Array.isArray(params.batchCode) ? params.batchCode[0] : params.batchCode;
+  const batchCode = pBatchCode || "-";
   const [report, setReport] = useState<ReportInfo | null>(null);
   const [note, setNote] = useState("Generating PDF…");
 

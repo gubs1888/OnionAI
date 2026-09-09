@@ -9,6 +9,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 
 import CameraView from "../components/CameraView";
+import { setCapturedImageUri } from "../services/imageStore";
 
 export default function CameraScreen() {
   const router = useRouter();
@@ -21,9 +22,10 @@ export default function CameraScreen() {
       setError("No image captured — try again.");
       return;
     }
+    setCapturedImageUri(uri);
     router.replace({
       pathname: "/analyzing",
-      params: { uri, batchCode: batchCode ?? "DEMO-001" },
+      params: { batchCode: batchCode ?? "DEMO-001" },
     });
   };
 

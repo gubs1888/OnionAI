@@ -32,6 +32,14 @@ class BatchCreate(BaseModel):
     notes: str | None = Field(default=None, max_length=2000)
 
 
+class BatchUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    variety: str | None = Field(default=None, max_length=64)
+    source: str | None = Field(default=None, max_length=120)
+    notes: str | None = Field(default=None, max_length=2000)
+    status: str | None = Field(default=None, pattern="^(created|analyzing|analyzed|failed|closed)$")
+
+
 class BatchOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

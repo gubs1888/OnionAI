@@ -17,6 +17,10 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
 from ml.config import DATA_YAML, DEFAULT_MODEL_PATH, IMG_SIZE
 
 
@@ -42,7 +46,26 @@ def main() -> None:
         fail("ultralytics/torch are not installed in this environment.")
 
     model = YOLO(str(model_path))
-    metrics = model.val(data=args.data, imgsz=args.imgsz)  # TODO(TEAM A): per-class report
+    metrics = model.val(data=args.data, imgsz=args.imgsz)
+
+    # Per-class mAP50 breakdown (critical for GO/NO-GO gate)
+    class_names = ["onion", "damaged", "rotten", "sprouted"]
+    per_class: dict[str, dict] = {}
+    try:
+        ap50_per_class = metrics.box.ap50            # shape: (nc,)
+        ap_per_class = metrics.box.ap                 # shape: (nc, 10)
+        p_per_class = metrics.box.p                   # shape: (nc,)
+        r_per_class = metrics.box.r                   # shape: (nc,)
+        for i, name in enumerate(class_names):
+            if i < len(ap50_per_class):
+                per_class[name] = {
+                    "map50": round(float(ap50_per_class[i]), 4),
+                    "map50_95": round(float(ap_per_class[i].mean()), 4),
+                    "precision": round(float(p_per_class[i]), 4),
+                    "recall": round(float(r_per_class[i]), 4),
+                }
+    except (AttributeError, IndexError):
+        per_class = {"note": "Per-class metrics unavailable for this ultralytics version."}
 
     report = {
         "model": str(model_path),
@@ -52,13 +75,26 @@ def main() -> None:
         "map50_95": float(getattr(metrics.box, "map", 0.0)),
         "precision": float(getattr(metrics.box, "mp", 0.0)),
         "recall": float(getattr(metrics.box, "mr", 0.0)),
-        "note": "Raw YOLO validation metrics — interpretation pending TEAM A/D.",
+        "per_class": per_class,
     }
+
+    # GO/NO-GO gate: mAP50 >= 0.6 on the 'onion' class
+    GATE_THRESHOLD = 0.6
+    onion_map50 = per_class.get("onion", {}).get("map50", 0.0)
+    gate_pass = isinstance(onion_map50, float) and onion_map50 >= GATE_THRESHOLD
+    report["go_no_go"] = {
+        "gate": f"onion mAP50 >= {GATE_THRESHOLD}",
+        "onion_map50": onion_map50,
+        "pass": gate_pass,
+    }
+
     out_path = model_path.parent / "eval_report.json"
     out_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
 
     print(json.dumps(report, indent=2))
-    print(f"\n[DONE] Report written to {out_path}")
+    gate_status = "PASS ✓" if gate_pass else "FAIL ✗"
+    print(f"\n[GO/NO-GO] onion mAP50 = {onion_map50} → {gate_status}")
+    print(f"[DONE] Report written to {out_path}")
 
 
 if __name__ == "__main__":

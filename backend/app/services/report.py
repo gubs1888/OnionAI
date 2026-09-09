@@ -10,10 +10,16 @@ Rules:
 
 from __future__ import annotations
 
+import os
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
-from app.config import settings
+from sqlalchemy.orm.session import Session
+
+from app.config import settings, BACKEND_ROOT
+from app.models.image import Image
+from app.models.detection import Detection
 
 
 class ReportGenerationError(RuntimeError):
@@ -37,6 +43,8 @@ def generate_report(assessment, out_dir: Path | None = None) -> Path:
             Table,
             TableStyle,
         )
+        from reportlab.platypus import Image as RLImage
+        from reportlab.lib.utils import ImageReader
     except ImportError as exc:  # pragma: no cover
         raise ReportGenerationError(
             "reportlab is not installed — cannot generate PDF. "
@@ -57,6 +65,10 @@ def generate_report(assessment, out_dir: Path | None = None) -> Path:
         "DEMO", parent=styles["Heading3"], textColor=colors.white,
         backColor=colors.HexColor("#B91C1C"), alignment=1, spaceBefore=6, spaceAfter=10,
     )
+    warning_style = ParagraphStyle(
+        "WARN", parent=styles["Heading3"], textColor=colors.black,
+        backColor=colors.HexColor("#FBBF24"), alignment=1, spaceBefore=6, spaceAfter=10,
+    )
     note_style = ParagraphStyle(
         "N", parent=styles["Italic"], fontSize=8, textColor=colors.HexColor("#555555")
     )
@@ -66,8 +78,12 @@ def generate_report(assessment, out_dir: Path | None = None) -> Path:
 
     story.append(Paragraph("Onion Quality Assessment Report", title_style))
     story.append(Paragraph(f"Report {report_code}", styles["Heading4"]))
+    
     if assessment.is_demo:
         story.append(Paragraph("DEMO DATA — NOT REAL AI OUTPUT — NOT FOR OFFICIAL USE", demo_style))
+        
+    if assessment.avg_confidence < 0.70:
+        story.append(Paragraph("⚠ LOW CONFIDENCE ASSESSMENT — Please recapture image or verify manually", warning_style))
 
     meta = Table(
         [
@@ -80,36 +96,109 @@ def generate_report(assessment, out_dir: Path | None = None) -> Path:
         colWidths=[45 * mm, 110 * mm],
     )
     meta.setStyle(TableStyle([("GRID", (0, 0), (-1, -1), 0.4, colors.grey)]))
-    story += [meta, Spacer(1, 8 * mm)]
+    story += [meta, Spacer(1, 6 * mm)]
 
-    rows = [
-        ["Metric", "Value"],
-        ["Total onions", str(assessment.total_onions)],
-        ["Healthy", str(assessment.healthy)],
-        ["Damaged", str(assessment.damaged)],
-        ["Rotten", str(assessment.rotten)],
-        ["Sprouted", str(assessment.sprouted)],
-        ["Undersized", str(assessment.undersized)],
-        ["Defect %", f"{assessment.defect_percentage:.2f}"],
-        ["Quality score", f"{assessment.quality_score:.1f} / 100"],
-        ["Grade (MVP)", assessment.grade],
-        ["URS %", f"{assessment.urs_percentage:.1f}"],
-        ["Avg confidence", f"{assessment.avg_confidence * 100:.1f}%"],
+    # --- Draw Bounding Boxes ---
+    tmp_path = None
+    try:
+        db = Session.object_session(assessment)
+        if db and assessment.image_id:
+            img_row = db.get(Image, assessment.image_id)
+            if img_row:
+                detections = db.query(Detection).filter(Detection.image_id == img_row.id).all()
+                img_path = str(BACKEND_ROOT / img_row.file_path)
+                if os.path.exists(img_path):
+                    import cv2
+                    img_array = cv2.imread(img_path)
+                    if img_array is not None:
+                        color_map = {
+                            "onion": (0, 255, 0),     # Green (Healthy)
+                            "damaged": (0, 255, 255), # Yellow
+                            "rotten": (0, 0, 255),    # Red
+                            "sprouted": (255, 0, 0),  # Blue
+                        }
+                        for det in detections:
+                            color = color_map.get(det.class_name, (255, 255, 255))
+                            if det.bbox and len(det.bbox) == 4:
+                                x1, y1, x2, y2 = map(int, det.bbox)
+                                cv2.rectangle(img_array, (x1, y1), (x2, y2), color, 3)
+                                label = f"{det.class_name} {det.confidence:.2f}"
+                                cv2.putText(img_array, label, (x1, max(y1 - 10, 0)), cv2.FONT_HERSHEY_SIMPLEX, 1.5, color, 3)
+                        
+                        fd, tmp_path = tempfile.mkstemp(suffix=".jpg")
+                        os.close(fd)
+                        cv2.imwrite(tmp_path, img_array)
+                        
+                        img_reader = ImageReader(tmp_path)
+                        img_w, img_h = img_reader.getSize()
+                        aspect = img_h / float(img_w)
+                        display_width = 150 * mm
+                        display_height = display_width * aspect
+                        if display_height > 90 * mm:  # Constrain height so it fits on page 1 easily
+                            display_height = 90 * mm
+                            display_width = display_height / aspect
+                        
+                        story.append(RLImage(tmp_path, width=display_width, height=display_height))
+                        story.append(Spacer(1, 6 * mm))
+    except Exception as e:
+        print(f"Failed to generate annotated image: {e}")
+        pass
+
+    # --- Calculations ---
+    total = assessment.total_onions
+    grade_a_pct = (assessment.healthy / total * 100) if total > 0 else 0
+    damaged_pct = (assessment.damaged / total * 100) if total > 0 else 0
+    rotten_pct = (assessment.rotten / total * 100) if total > 0 else 0
+    sprouted_pct = (assessment.sprouted / total * 100) if total > 0 else 0
+    undersized_pct = (assessment.undersized / total * 100) if total > 0 else 0
+
+    # --- Breakdown Table ---
+    story.append(Paragraph("Quality Category Breakdown", styles["Heading3"]))
+    breakdown_rows = [
+        ["Quality Category", "Count", "Percentage"],
+        ["Grade A (Healthy)", str(assessment.healthy), f"{grade_a_pct:.1f}%"],
+        ["Damaged", str(assessment.damaged), f"{damaged_pct:.1f}%"],
+        ["Rotten", str(assessment.rotten), f"{rotten_pct:.1f}%"],
+        ["Sprouted", str(assessment.sprouted), f"{sprouted_pct:.1f}%"],
+        ["Undersized / URS", str(assessment.undersized), f"{undersized_pct:.1f}%"],
     ]
-    table = Table(rows, colWidths=[70 * mm, 85 * mm])
-    table.setStyle(
-        TableStyle(
-            [
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1F2937")),
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
-                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F3F4F6")]),
-                ("FONTSIZE", (0, 0), (-1, -1), 9),
-            ]
-        )
+    b_table = Table(breakdown_rows, colWidths=[70 * mm, 42 * mm, 43 * mm])
+    b_table.setStyle(
+        TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1F2937")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F3F4F6")]),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+        ])
     )
-    story += [Paragraph("Results", styles["Heading3"]), table, Spacer(1, 6 * mm)]
+    story += [b_table, Spacer(1, 6 * mm)]
 
+    # --- Overall Metrics ---
+    story.append(Paragraph("Overall Quality Metrics", styles["Heading3"]))
+    metrics_rows = [
+        ["Metric", "Value"],
+        ["Total onions", str(total)],
+        ["Grade A %", f"{grade_a_pct:.1f}%"],
+        ["URS %", f"{assessment.urs_percentage:.1f}%"],
+        ["Avg AI Confidence", f"{assessment.avg_confidence * 100:.1f}%"],
+    ]
+    m_table = Table(metrics_rows, colWidths=[75 * mm, 80 * mm])
+    m_table.setStyle(
+        TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#16A34A")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F3F4F6")]),
+            ("FONTSIZE", (0, 0), (-1, -1), 10),
+            ("FONTSTYLE", (0, 1), (0, -1), "Bold"),
+            ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+        ])
+    )
+    story += [m_table, Spacer(1, 6 * mm)]
+
+    # --- Reasons ---
     reasons = list(assessment.reasons or [])
     story.append(Paragraph("Reasons / deductions", styles["Heading3"]))
     for reason in reasons or ["No deductions recorded."]:
@@ -125,5 +214,10 @@ def generate_report(assessment, out_dir: Path | None = None) -> Path:
         ),
     ]
 
-    doc.build(story)
+    try:
+        doc.build(story)
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
     return pdf_path
