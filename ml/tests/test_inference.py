@@ -47,6 +47,12 @@ def test_different_images_give_different_demo_results(tmp_path):
 
 
 def test_real_model_inference(tmp_path):
+    import pytest
+    try:
+        import ultralytics
+    except ImportError:
+        pytest.skip("ultralytics is required for real inference")
+
     sample_img = Path("docs/demo/sample_images/sample_onions_01.jpg")
     if sample_img.exists():
         detector = OnionDetector(allow_demo=False)

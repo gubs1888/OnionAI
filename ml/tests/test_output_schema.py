@@ -50,6 +50,12 @@ def test_top_level_contract_keys(tmp_path):
 
 
 def test_real_model_output_schema():
+    import pytest
+    try:
+        import ultralytics
+    except ImportError:
+        pytest.skip("ultralytics is required for real inference")
+
     sample_img = Path("docs/demo/sample_images/sample_onions_01.jpg")
     if sample_img.exists():
         result = OnionDetector(allow_demo=False).detect(sample_img)
