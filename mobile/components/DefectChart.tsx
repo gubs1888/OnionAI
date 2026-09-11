@@ -18,7 +18,7 @@ const CATEGORIES: Array<{ key: keyof Counts; label: string; color: string }> = [
   { key: "damaged", label: "Damaged", color: "#D97706" },
   { key: "rotten", label: "Rotten", color: "#DC2626" },
   { key: "sprouted", label: "Sprouted", color: "#7C3AED" },
-  { key: "undersized", label: "Undersized", color: "#2563EB" },
+  { key: "undersized", label: "Size Out of Spec (<35mm / >70mm)", color: "#2563EB" },
 ];
 
 export default function DefectChart({ counts }: { counts: Counts }) {

@@ -1,8 +1,12 @@
 """Assessment model — the aggregated quality verdict for one batch analysis run.
 
-This is the object serialized in the Backend -> Mobile contract
-(see docs/api/API_CONTRACT.md). Values here are OUR MVP metrics — they are
-NOT official grades until TEAM D verifies thresholds (docs/standards/).
+POST-NCCF ARCHITECTURE:
+    This model now contains BOTH:
+    1. NCCF rule engine results (grade_a_count, grade_urs_count, etc.)
+    2. Legacy MVP metrics (quality_score, grade A/B/C/D) for backward compat.
+
+    The NCCF fields are the source of truth for government-spec reporting.
+    Legacy fields are preserved so old mobile clients don't break.
 """
 
 from datetime import datetime
@@ -26,7 +30,24 @@ class Assessment(Base):
         ForeignKey("images.id", ondelete="SET NULL"), nullable=True
     )
 
-    # --- Counts (mutually exclusive buckets; they sum to total_onions) ---
+    # --- NCCF Rule Engine results (primary, post-NCCF) ---
+    grade_a_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    grade_urs_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    non_qualifying_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    specification_id: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="NCCF_PAACS_2026"
+    )
+    nccf_grade: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="NON_QUALIFYING"
+    )
+    # Per-onion grade details (JSON array of {onion_id, grade, reasons, defects})
+    onion_grades: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    # Features requiring manual inspection (JSON array of strings)
+    manual_flags: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    # Per-defect counts (JSON dict of {defect_name: count})
+    defect_breakdown: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+
+    # --- Legacy counts (backward compat — sum to total_onions) ---
     total_onions: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     healthy: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     damaged: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -34,7 +55,7 @@ class Assessment(Base):
     sprouted: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     undersized: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
-    # --- Metrics ---
+    # --- Legacy metrics (backward compat) ---
     defect_percentage: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     quality_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     grade: Mapped[str] = mapped_column(String(2), nullable=False, default="D")

@@ -10,13 +10,15 @@ import { Assessment } from "../types/assessment";
 export default function ResultCard({ assessment }: { assessment: Assessment }) {
   const rows: Array<[string, string]> = [
     ["Total onions", String(assessment.total_onions)],
-    ["Healthy", String(assessment.healthy)],
+    ["Grade A (Count)", assessment.grade_a_count !== undefined ? String(assessment.grade_a_count) : String(assessment.healthy)],
+    ["Grade URS (Count)", assessment.grade_urs_count !== undefined ? String(assessment.grade_urs_count) : "0"],
+    ["Non-Qualifying (Count)", assessment.non_qualifying_count !== undefined ? String(assessment.non_qualifying_count) : "0"],
     ["Damaged", String(assessment.damaged)],
     ["Rotten", String(assessment.rotten)],
     ["Sprouted", String(assessment.sprouted)],
-    ["Undersized", String(assessment.undersized)],
+    ["Size Out-of-Spec (<35mm / >70mm)", String(assessment.undersized)],
     ["Defect %", `${assessment.defect_percentage.toFixed(2)}%`],
-    ["URS %", `${assessment.urs_percentage.toFixed(1)}%`],
+    ["URS % (Under Relaxed Specs)", `${assessment.urs_percentage.toFixed(1)}%`],
     ["Confidence", `${assessment.confidence.toFixed(1)}%`],
   ];
 

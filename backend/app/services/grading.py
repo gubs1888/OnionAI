@@ -1,21 +1,27 @@
 """
-GRADING ENGINE — converts objective measurements into
-quality_score (0..100), grade (A/B/C/D) and human-readable reasons.
+GRADING ENGINE — converts objective measurements into quality verdicts.
 
-DESIGN RULES
-------------
-1. NO official government thresholds are hard-coded. All numbers live in
-   `backend/config/grading_config.json`:
-     - `mvp_scoring`   : OUR transparent MVP heuristic (what actually runs)
-     - `official_standards_TO_VERIFY` : reserved — TEAM D fills after
-       verification. Code does NOT read this section yet.
-2. The engine is pure: measurements in -> verdict out. No DB, no I/O.
-3. Reasons explain every deduction so the UI can show WHY a grade was given.
+ARCHITECTURE (post-NCCF integration):
+--------------------------------------
+Two grading paths are available, controlled by grading_config.json:
 
-STABLE interface (contract-first — see docs/api/API_CONTRACT.md):
+1. NCCF Rule Engine (default, use_nccf_engine=true):
+   Per-onion classification against NCCF 2026 specifications.
+   Produces: GRADE_A / GRADE_URS / NON_QUALIFYING per onion,
+   then aggregates to batch-level statistics.
 
+2. Legacy MVP Scoring (fallback, use_nccf_engine=false):
+   Weighted heuristic: 100 - defect_term - urs_term - confidence_term
+   Produces: quality_score (0..100) → grade (A/B/C/D).
+
+Both paths are pure: measurements in → verdict out. No DB, no I/O.
+
+STABLE interface:
     grade_batch(counts, urs_percentage, avg_confidence, config=None)
-      -> {"quality_score": float, "grade": "A"|"B"|"C"|"D", "reasons": [str]}
+      -> {"quality_score", "grade", "reasons", ...}
+
+    grade_batch_nccf(detections, config=None)
+      -> BatchGradeResult (from nccf_rule_engine)
 """
 
 from __future__ import annotations
@@ -48,50 +54,86 @@ def load_config() -> dict:
     return _load_cached(str(settings.grading_config_path))
 
 
+# --- 8-class defect names (matches ml/config.py contract) ---
+DEFECT_CLASS_NAMES = (
+    "damaged", "rotten", "sprouted", "cut_crack", "smut", "discoloured", "fresh_roots"
+)
+
+
 def aggregate_counts(detections: list[dict], config: dict | None = None) -> dict:
     """
     detections -> mutually-exclusive count buckets.
 
-    Bucketing rules (documented contract):
-      * damaged/rotten/sprouted -> their defect bucket.
+    Bucketing rules:
+      * Any known defect class -> its bucket.
       * class 'onion' smaller than size threshold -> `undersized`.
       * remaining 'onion' -> `healthy`.
-    Buckets always sum to total_onions. Undersized counts as non-healthy in
-    defect_percentage (matches the agreed Backend->Mobile contract).
+    Buckets always sum to total_onions.
     """
     cfg = config or load_config()
-    min_mm = float(cfg["size_thresholds"]["min_size_mm"])  # PLACEHOLDER — verify!
+    min_mm = float(cfg.get("size_thresholds", {}).get("min_size_mm", 35))
+    max_mm = float(cfg.get("size_thresholds", {}).get("max_size_mm", 70))
 
-    counts = {
+    counts: dict[str, int] = {
         "total_onions": 0,
         "healthy": 0,
         "damaged": 0,
         "rotten": 0,
         "sprouted": 0,
         "undersized": 0,
+        # New NCCF-specific buckets
+        "cut_crack": 0,
+        "smut": 0,
+        "discoloured": 0,
+        "fresh_roots": 0,
     }
     for det in detections:
         counts["total_onions"] += 1
         name = det["class_name"]
-        if name in ("damaged", "rotten", "sprouted"):
-            counts[name] += 1
+        if name in DEFECT_CLASS_NAMES:
+            counts[name] = counts.get(name, 0) + 1
         elif name == "onion":
             size = det.get("estimated_size_mm")
-            if size is not None and size < min_mm:
+            if size is not None and (size < min_mm or size > max_mm):
                 counts["undersized"] += 1
             else:
                 counts["healthy"] += 1
         # Unknown class names are ignored with a note (forward compatibility).
-    counts["healthy"] = max(
-        0,
-        counts["total_onions"]
-        - counts["damaged"]
-        - counts["rotten"]
-        - counts["sprouted"]
-        - counts["undersized"],
-    )
+
+    # Recompute healthy to ensure buckets sum correctly
+    total_defects = sum(
+        counts.get(k, 0) for k in DEFECT_CLASS_NAMES
+    ) + counts["undersized"]
+    counts["healthy"] = max(0, counts["total_onions"] - total_defects)
     return counts
 
+
+# ---------------------------------------------------------------------------
+# NCCF Rule Engine path (primary)
+# ---------------------------------------------------------------------------
+
+def grade_batch_nccf(detections: list[dict], config: dict | None = None):
+    """Grade a batch using the NCCF specification rule engine.
+
+    Returns a BatchGradeResult with per-onion grades and batch statistics.
+    """
+    from app.services.nccf_rule_engine import (
+        BatchGradeResult,
+        extract_features,
+        get_active_spec,
+        grade_batch as nccf_grade_batch,
+        load_nccf_specs,
+    )
+
+    specs = load_nccf_specs(settings.nccf_spec_path)
+    spec_id, spec = get_active_spec(specs)
+    features = extract_features(detections)
+    return nccf_grade_batch(features, spec, spec_id)
+
+
+# ---------------------------------------------------------------------------
+# Legacy MVP scoring path (backward compatibility)
+# ---------------------------------------------------------------------------
 
 def grade_batch(
     counts: dict,
@@ -111,6 +153,7 @@ def grade_batch(
     `mvp_scoring.grade_thresholds`.
 
     THIS IS OUR MVP LOGIC — not an official grading standard.
+    Preserved for backward compatibility.
     """
     cfg = config or load_config()
     mvp = cfg["mvp_scoring"]
@@ -126,7 +169,9 @@ def grade_batch(
             "reasons": ["No onions to grade (total = 0)."],
         }
 
-    non_healthy = counts.get("damaged", 0) + counts.get("rotten", 0) + counts.get("sprouted", 0) + counts.get("undersized", 0)
+    non_healthy = sum(
+        counts.get(k, 0) for k in DEFECT_CLASS_NAMES
+    ) + counts.get("undersized", 0)
     defect_pct = non_healthy * 100.0 / total
 
     clamp = lambda v: max(0.0, min(100.0, float(v)))  # noqa: E731
@@ -134,13 +179,6 @@ def grade_batch(
     urs_term = weights["urs"] * clamp(urs_percentage)
 
     low_conf_threshold = float(mvp["low_confidence_threshold"])
-    total_dets = sum(
-        1
-        for key in ("healthy", "damaged", "rotten", "sprouted", "undersized")
-        # confidence share is computed by the caller over detections; here we
-        # approximate with avg_confidence when per-detection data is absent.
-        if key in counts
-    )
     # avg_confidence (0..1): penalty grows linearly as it drops below threshold.
     if avg_confidence >= low_conf_threshold:
         conf_term = 0.0

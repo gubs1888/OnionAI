@@ -49,7 +49,7 @@ def main() -> None:
     metrics = model.val(data=args.data, imgsz=args.imgsz)
 
     # Per-class mAP50 breakdown (critical for GO/NO-GO gate)
-    class_names = ["onion", "damaged", "rotten", "sprouted"]
+    class_names = ["onion", "damaged", "rotten", "sprouted", "cut_crack", "smut", "discoloured", "fresh_roots"]
     per_class: dict[str, dict] = {}
     try:
         ap50_per_class = metrics.box.ap50            # shape: (nc,)

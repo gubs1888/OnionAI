@@ -1,0 +1,150 @@
+{
+  "lot_id": "lot_1_sample_onions_01",
+  "image": "sample_onions_01.jpg",
+  "is_demo": false,
+  "model_version": "yolo11n-onion_yolo",
+  "inference_ms": 2622.1,
+  "detections_count": 8,
+  "counts": {
+    "total_onions": 8,
+    "healthy": 0,
+    "damaged": 7,
+    "rotten": 1,
+    "sprouted": 0,
+    "undersized": 0,
+    "cut_crack": 0,
+    "smut": 0,
+    "discoloured": 0,
+    "fresh_roots": 0
+  },
+  "avg_confidence": 0.3075,
+  "urs_percentage": 0.0,
+  "nccf_result": {
+    "specification_id": "NCCF_PAACS_2026",
+    "specification_name": "NCCF PAACS FPO/PACS Procurement Specification 2026 (relaxed)",
+    "batch_grade": "NON_QUALIFYING",
+    "total_onions": 8,
+    "grade_a_count": 0,
+    "grade_urs_count": 0,
+    "non_qualifying_count": 8,
+    "grade_a_pct": 0.0,
+    "grade_urs_pct": 0.0,
+    "non_qualifying_pct": 100.0,
+    "reasons": [
+      "Specification: NCCF PAACS FPO/PACS Procurement Specification 2026 (relaxed)",
+      "Grade A: 0/8 (0.0%)",
+      "Grade URS: 0/8 (0.0%)",
+      "Non-qualifying: 8/8 (100.0%)",
+      "Defect breakdown: damaged: 7, rotten: 1",
+      "NOTE: AI-based visual pre-grading per NCCF 2026 specifications."
+    ]
+  },
+  "mvp_result": {
+    "quality_score": 28.5,
+    "grade": "D",
+    "reasons": [
+      "8/8 onions non-healthy (defect 100.0%) -60.0 pts",
+      "URS 12.5% -3.1 pts",
+      "Average confidence 0.31 below threshold 0.70 -8.4 pts",
+      "NOTE: grade per OUR MVP thresholds (mvp_scoring), not an official standard."
+    ]
+  },
+  "detections": [
+    {
+      "class_name": "damaged",
+      "class_id": 1,
+      "confidence": 0.7384,
+      "bbox": [
+        1153.9,
+        40.1,
+        1380.4,
+        260.4
+      ],
+      "estimated_size_mm": 178.0
+    },
+    {
+      "class_name": "damaged",
+      "class_id": 1,
+      "confidence": 0.3803,
+      "bbox": [
+        1336.4,
+        14.0,
+        1408.0,
+        137.9
+      ],
+      "estimated_size_mm": 91.6
+    },
+    {
+      "class_name": "rotten",
+      "class_id": 2,
+      "confidence": 0.2908,
+      "bbox": [
+        1094.2,
+        490.9,
+        1234.1,
+        611.9
+      ],
+      "estimated_size_mm": 112.5
+    },
+    {
+      "class_name": "damaged",
+      "class_id": 1,
+      "confidence": 0.2699,
+      "bbox": [
+        1322.8,
+        0.0,
+        1408.0,
+        74.6
+      ],
+      "estimated_size_mm": 76.6
+    },
+    {
+      "class_name": "damaged",
+      "class_id": 1,
+      "confidence": 0.2146,
+      "bbox": [
+        955.2,
+        0.0,
+        1181.4,
+        98.1
+      ],
+      "estimated_size_mm": 143.3
+    },
+    {
+      "class_name": "damaged",
+      "class_id": 1,
+      "confidence": 0.2048,
+      "bbox": [
+        1289.4,
+        79.2,
+        1383.3,
+        173.2
+      ],
+      "estimated_size_mm": 86.4
+    },
+    {
+      "class_name": "damaged",
+      "class_id": 1,
+      "confidence": 0.1967,
+      "bbox": [
+        0.0,
+        197.2,
+        149.1,
+        671.6
+      ],
+      "estimated_size_mm": 268.6
+    },
+    {
+      "class_name": "damaged",
+      "class_id": 1,
+      "confidence": 0.1642,
+      "bbox": [
+        681.1,
+        265.1,
+        853.5,
+        426.5
+      ],
+      "estimated_size_mm": 138.1
+    }
+  ]
+}

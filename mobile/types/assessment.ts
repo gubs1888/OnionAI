@@ -36,6 +36,14 @@ export interface Assessment {
   is_demo: boolean;
   model_version: string;
   created_at: string;
+  // NCCF Rule Engine fields
+  grade_a_count?: number;
+  grade_urs_count?: number;
+  non_qualifying_count?: number;
+  specification_id?: string;
+  nccf_grade?: string;
+  defect_breakdown?: Record<string, number>;
+  manual_flags?: string[];
 }
 
 /** POST /api/analyze response = Assessment + detection detail. */

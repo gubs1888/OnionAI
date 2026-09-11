@@ -41,7 +41,11 @@ from pathlib import Path
 from app.config import settings
 
 # Canonical class mapping (must match ml/config.py and ml/dataset/data.yaml)
-CLASS_NAMES: dict[int, str] = {0: "onion", 1: "damaged", 2: "rotten", 3: "sprouted"}
+# 8-class system aligned with NCCF 2026 procurement specifications.
+CLASS_NAMES: dict[int, str] = {
+    0: "onion", 1: "damaged", 2: "rotten", 3: "sprouted",
+    4: "cut_crack", 5: "smut", 6: "discoloured", 7: "fresh_roots",
+}
 CLASS_NAME_TO_ID = {v: k for k, v in CLASS_NAMES.items()}
 
 DEMO_NOTE = (
@@ -143,7 +147,11 @@ def _demo_analyze(image_path: str) -> dict:
     detections: list[dict] = []
     for _ in range(n_onions):
         if rng.random() < 0.22:  # ~22% defective in demo data
-            class_id = rng.choices([1, 2, 3], weights=[0.5, 0.3, 0.2])[0]
+            # Distribute across all 7 defect classes (NCCF-aligned weights)
+            class_id = rng.choices(
+                [1, 2, 3, 4, 5, 6, 7],
+                weights=[0.20, 0.10, 0.15, 0.10, 0.20, 0.15, 0.10],
+            )[0]
             confidence = round(rng.uniform(0.60, 0.95), 4)
         else:
             class_id = 0

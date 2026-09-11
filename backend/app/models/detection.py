@@ -2,6 +2,10 @@
 
 Contract with ML (TEAM A): every detection has
     class_name, class_id, confidence, bbox = [x1, y1, x2, y2]
+
+8-class system (NCCF 2026 aligned):
+    0=onion 1=damaged 2=rotten 3=sprouted 4=cut_crack 5=smut 6=discoloured 7=fresh_roots
+
 `estimated_size_mm` is filled by the measurement service (see services/measurement.py).
 """
 

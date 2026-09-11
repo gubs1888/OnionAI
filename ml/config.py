@@ -14,11 +14,19 @@ ML_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = ML_ROOT.parent
 
 # --- Canonical classes (contract — do not renumber) -------------------------
+# 8-class system aligned with NCCF 2026 procurement specifications.
+# Classes 0-3 preserved from the original 4-class contract.
+# Classes 4-7 split out from the generic 'damaged'/'rotten'/'sprouted' buckets
+# using finer-grained labels already present in the raw Roboflow annotations.
 CLASSES: dict[int, str] = {
-    0: "onion",      # a healthy onion instance
-    1: "damaged",    # physical damage / broken skin
-    2: "rotten",     # decay / mould / black rot
-    3: "sprouted",   # green sprout emerging from the bulb
+    0: "onion",        # a healthy onion instance
+    1: "damaged",      # generic physical damage (only when no specific defect)
+    2: "rotten",       # decay / soft rot / fungal rot (NOT smut)
+    3: "sprouted",     # green sprout emerging from the bulb
+    4: "cut_crack",    # cuts, cracks — NCCF: "Cut/Crack"
+    5: "smut",         # black smut / mut infection — NCCF: "Smut"
+    6: "discoloured",  # staining / discoloration — NCCF: "Staining/Discoloration"
+    7: "fresh_roots",  # rooting / rooted — NCCF: "Rooting"
 }
 # Alias kept identical to backend/app/services/inference.py for contract clarity.
 CLASS_NAMES = CLASSES

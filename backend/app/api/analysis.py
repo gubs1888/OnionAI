@@ -2,10 +2,11 @@
 POST /api/analyze — upload an image, run the ML gateway, aggregate, grade, persist.
 
 Orchestration ONLY: every hard problem lives in a service module.
-  inference.py  -> detections          (TEAM A swap point)
-  measurement.py -> sizes
-  grading.py    -> counts + score + grade + reasons
-  urs.py        -> URS %
+  inference.py         -> detections          (TEAM A swap point)
+  measurement.py       -> sizes
+  nccf_rule_engine.py  -> per-onion grading (NCCF specs)
+  grading.py           -> legacy counts + score + grade + reasons
+  urs.py               -> URS %
 
 If DEMO MODE is on (default) the whole chain works TODAY with clearly-marked
 synthetic data.
@@ -45,8 +46,8 @@ MAX_UPLOAD_BYTES = 15 * 1024 * 1024  # 15 MB
         "- `image`: jpg/jpeg/png file (required)\n"
         "- `batch_id`: batch code or numeric id (optional — a walk-in batch is "
         "created when omitted)\n\n"
-        "Runs: save image -> inference service -> size estimation -> grading -> "
-        "URS -> persist (image, detections, assessment). "
+        "Runs: save image -> inference service -> size estimation -> "
+        "NCCF rule engine -> grading -> persist (image, detections, assessment). "
         "**When DEMO MODE is on the detections are synthetic and the response is "
         "flagged `is_demo: true` — the client must show a DEMO banner.**"
     ),
@@ -144,7 +145,7 @@ def analyze_image_endpoint(
             },
         )
 
-    # 5. Measurements -> counts -> URS -> grading (pure functions) -----------
+    # 5. Measurements -> NCCF rule engine -> legacy grading -------------------
     try:
         config = grading.load_config()
     except GradingError as exc:
@@ -154,10 +155,18 @@ def analyze_image_endpoint(
         ) from exc
 
     detections = measurement.estimate_sizes(detections, config=config)
+
+    # --- NCCF Rule Engine (primary grading path) ---
+    nccf_result = grading.grade_batch_nccf(detections, config=config)
+
+    # --- Legacy scoring (backward compat) ---
     counts = grading.aggregate_counts(detections, config=config)
-    urs_pct = urs_service.compute_urs(counts, config=config)
+    urs_pct_legacy = urs_service.compute_urs(counts, config=config)
     avg_confidence = sum(d["confidence"] for d in detections) / len(detections)
-    verdict = grading.grade_batch(counts, urs_pct, avg_confidence, config=config)
+    verdict = grading.grade_batch(counts, urs_pct_legacy, avg_confidence, config=config)
+
+    # URS% from NCCF (the correct value)
+    urs_pct_nccf = urs_service.compute_urs_from_nccf(nccf_result)
 
     defect_pct = round(
         100.0 * (counts["total_onions"] - counts["healthy"]) / counts["total_onions"], 2
@@ -182,6 +191,16 @@ def analyze_image_endpoint(
     assessment = Assessment(
         batch_id=batch.id,
         image_id=image_row.id,
+        # --- NCCF results ---
+        grade_a_count=nccf_result.grade_a_count,
+        grade_urs_count=nccf_result.grade_urs_count,
+        non_qualifying_count=nccf_result.non_qualifying_count,
+        specification_id=nccf_result.specification_id,
+        nccf_grade=nccf_result.batch_grade,
+        onion_grades=nccf_result.per_onion_grades,
+        manual_flags=nccf_result.manual_flags,
+        defect_breakdown=nccf_result.defect_breakdown,
+        # --- Legacy fields ---
         total_onions=counts["total_onions"],
         healthy=counts["healthy"],
         damaged=counts["damaged"],
@@ -191,9 +210,10 @@ def analyze_image_endpoint(
         defect_percentage=defect_pct,
         quality_score=verdict["quality_score"],
         grade=verdict["grade"],
-        urs_percentage=urs_pct,
+        urs_percentage=urs_pct_nccf,  # use NCCF-derived URS% even in legacy field
         avg_confidence=round(avg_confidence, 4),
-        reasons=verdict["reasons"],
+        reasons=nccf_result.reasons,  # use NCCF reasons as primary
+        # --- Provenance ---
         is_demo=bool(result.get("is_demo", settings.demo_mode)),
         model_version=result.get("model_version", "unknown"),
     )

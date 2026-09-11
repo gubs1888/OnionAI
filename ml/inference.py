@@ -149,7 +149,12 @@ class OnionDetector:
         detections: list[dict] = []
         for _ in range(rng.randint(10, 60)):
             if rng.random() < 0.22:
-                class_id = rng.choices([1, 2, 3], weights=[0.5, 0.3, 0.2])[0]
+                # ~22% defective — distribute across all 7 defect classes
+                # Weights roughly reflect NCCF defect prevalence
+                class_id = rng.choices(
+                    [1, 2, 3, 4, 5, 6, 7],
+                    weights=[0.20, 0.10, 0.15, 0.10, 0.20, 0.15, 0.10],
+                )[0]
                 confidence = round(rng.uniform(0.60, 0.95), 4)
             else:
                 class_id = 0

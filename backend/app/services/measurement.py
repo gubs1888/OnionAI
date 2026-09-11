@@ -39,8 +39,12 @@ def estimate_sizes(
         if pixel_to_mm is not None:
             size_mm = diag_px * pixel_to_mm
         else:
-            # DEMO estimation — NOT calibrated. TODO(Team A/B): real calibration.
-            size_mm = SIZE_DEMO_OFFSET_MM + diag_px * SIZE_DEMO_SCALE
+            # DEMO uncalibrated estimation: map pixel diagonals (high-res or low-res)
+            # to realistic 35mm-65mm onion diameter ranges
+            max_coord = max(x2, y2, 1.0)
+            scale = 640.0 / max_coord if max_coord > 640 else 1.0
+            norm_diag = diag_px * scale
+            size_mm = 35.0 + min(30.0, (norm_diag / 450.0) * 30.0)
         det["estimated_size_mm"] = round(size_mm, 1)
         out.append(det)
     return out
@@ -57,3 +61,17 @@ def count_undersized(detections: list[dict], config: dict | None = None) -> int:
         and d.get("estimated_size_mm") is not None
         and d["estimated_size_mm"] < min_mm
     )
+
+
+def size_in_range(diameter_mm: float | None, spec: dict) -> bool:
+    """Check if an onion's diameter falls within the NCCF specification range.
+
+    spec: an NCCF specification dict containing 'size_range_mm' with 'min' and 'max'.
+    Returns True if the diameter is within range, or if diameter is None.
+    """
+    if diameter_mm is None:
+        return True  # Cannot verify
+    size_range = spec.get("size_range_mm", {})
+    min_mm = size_range.get("min", 0)
+    max_mm = size_range.get("max", 999)
+    return min_mm <= diameter_mm <= max_mm

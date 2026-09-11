@@ -1,0 +1,318 @@
+{
+  "lot_id": "lot_2_sample_onions_02",
+  "image": "sample_onions_02.jpg",
+  "is_demo": false,
+  "model_version": "yolo11n-onion_yolo",
+  "inference_ms": 78.2,
+  "detections_count": 22,
+  "counts": {
+    "total_onions": 22,
+    "healthy": 6,
+    "damaged": 13,
+    "rotten": 3,
+    "sprouted": 0,
+    "undersized": 0,
+    "cut_crack": 0,
+    "smut": 0,
+    "discoloured": 0,
+    "fresh_roots": 0
+  },
+  "avg_confidence": 0.3273,
+  "urs_percentage": 0.0,
+  "nccf_result": {
+    "specification_id": "NCCF_PAACS_2026",
+    "specification_name": "NCCF PAACS FPO/PACS Procurement Specification 2026 (relaxed)",
+    "batch_grade": "NON_QUALIFYING",
+    "total_onions": 21,
+    "grade_a_count": 0,
+    "grade_urs_count": 0,
+    "non_qualifying_count": 21,
+    "grade_a_pct": 0.0,
+    "grade_urs_pct": 0.0,
+    "non_qualifying_pct": 100.0,
+    "reasons": [
+      "Specification: NCCF PAACS FPO/PACS Procurement Specification 2026 (relaxed)",
+      "Grade A: 0/21 (0.0%)",
+      "Grade URS: 0/21 (0.0%)",
+      "Non-qualifying: 21/21 (100.0%)",
+      "Defect breakdown: damaged: 13, rotten: 3",
+      "NOTE: AI-based visual pre-grading per NCCF 2026 specifications."
+    ]
+  },
+  "mvp_result": {
+    "quality_score": 45.0,
+    "grade": "C",
+    "reasons": [
+      "16/22 onions non-healthy (defect 72.7%) -43.6 pts",
+      "URS 13.6% -3.4 pts",
+      "Average confidence 0.33 below threshold 0.70 -8.0 pts",
+      "NOTE: grade per OUR MVP thresholds (mvp_scoring), not an official standard."
+    ]
+  },
+  "detections": [
+    {
+      "class_name": "damaged",
+      "class_id": 1,
+      "confidence": 0.7412,
+      "bbox": [
+        664.2,
+        1.0,
+        827.4,
+        121.3
+      ],
+      "estimated_size_mm": 121.4
+    },
+    {
+      "class_name": "onion",
+      "class_id": 0,
+      "confidence": 0.5897,
+      "bbox": [
+        608.5,
+        257.5,
+        825.4,
+        450.2
+      ],
+      "estimated_size_mm": 165.1
+    },
+    {
+      "class_name": "damaged",
+      "class_id": 1,
+      "confidence": 0.5403,
+      "bbox": [
+        740.1,
+        0.0,
+        891.6,
+        81.8
+      ],
+      "estimated_size_mm": 106.1
+    },
+    {
+      "class_name": "damaged",
+      "class_id": 1,
+      "confidence": 0.4972,
+      "bbox": [
+        496.8,
+        0.7,
+        656.3,
+        136.6
+      ],
+      "estimated_size_mm": 124.8
+    },
+    {
+      "class_name": "damaged",
+      "class_id": 1,
+      "confidence": 0.4891,
+      "bbox": [
+        682.7,
+        71.2,
+        824.1,
+        181.9
+      ],
+      "estimated_size_mm": 109.8
+    },
+    {
+      "class_name": "damaged",
+      "class_id": 1,
+      "confidence": 0.4852,
+      "bbox": [
+        786.4,
+        84.1,
+        956.4,
+        250.5
+      ],
+      "estimated_size_mm": 138.9
+    },
+    {
+      "class_name": "onion",
+      "class_id": 0,
+      "confidence": 0.4469,
+      "bbox": [
+        502.9,
+        177.6,
+        688.4,
+        347.2
+      ],
+      "estimated_size_mm": 145.7
+    },
+    {
+      "class_name": "damaged",
+      "class_id": 1,
+      "confidence": 0.3887,
+      "bbox": [
+        929.0,
+        62.2,
+        1055.9,
+        170.6
+      ],
+      "estimated_size_mm": 103.4
+    },
+    {
+      "class_name": "damaged",
+      "class_id": 1,
+      "confidence": 0.3242,
+      "bbox": [
+        1101.3,
+        140.2,
+        1262.7,
+        300.5
+      ],
+      "estimated_size_mm": 133.7
+    },
+    {
+      "class_name": "damaged",
+      "class_id": 1,
+      "confidence": 0.2922,
+      "bbox": [
+        943.8,
+        158.0,
+        1044.6,
+        251.7
+      ],
+      "estimated_size_mm": 88.8
+    },
+    {
+      "class_name": "rotten",
+      "class_id": 2,
+      "confidence": 0.2706,
+      "bbox": [
+        73.2,
+        198.0,
+        277.7,
+        382.8
+      ],
+      "estimated_size_mm": 157.8
+    },
+    {
+      "class_name": "onion",
+      "class_id": 0,
+      "confidence": 0.2543,
+      "bbox": [
+        801.1,
+        326.7,
+        1008.8,
+        478.2
+      ],
+      "estimated_size_mm": 148.5
+    },
+    {
+      "class_name": "onion",
+      "class_id": 0,
+      "confidence": 0.2422,
+      "bbox": [
+        317.7,
+        242.0,
+        501.2,
+        411.3
+      ],
+      "estimated_size_mm": 144.8
+    },
+    {
+      "class_name": "damaged",
+      "class_id": 1,
+      "confidence": 0.2223,
+      "bbox": [
+        866.9,
+        34.3,
+        975.1,
+        114.4
+      ],
+      "estimated_size_mm": 87.3
+    },
+    {
+      "class_name": "onion",
+      "class_id": 0,
+      "confidence": 0.2085,
+      "bbox": [
+        1177.9,
+        212.3,
+        1366.9,
+        364.0
+      ],
+      "estimated_size_mm": 141.2
+    },
+    {
+      "class_name": "damaged",
+      "class_id": 1,
+      "confidence": 0.2008,
+      "bbox": [
+        956.3,
+        205.3,
+        1142.7,
+        369.8
+      ],
+      "estimated_size_mm": 144.3
+    },
+    {
+      "class_name": "damaged",
+      "class_id": 1,
+      "confidence": 0.1815,
+      "bbox": [
+        399.7,
+        0.0,
+        534.3,
+        119.8
+      ],
+      "estimated_size_mm": 110.1
+    },
+    {
+      "class_name": "rotten",
+      "class_id": 2,
+      "confidence": 0.1815,
+      "bbox": [
+        1013.1,
+        517.7,
+        1201.6,
+        756.4
+      ],
+      "estimated_size_mm": 172.1
+    },
+    {
+      "class_name": "onion",
+      "class_id": 0,
+      "confidence": 0.1752,
+      "bbox": [
+        1167.9,
+        597.1,
+        1406.8,
+        768.0
+      ],
+      "estimated_size_mm": 166.9
+    },
+    {
+      "class_name": "damaged",
+      "class_id": 1,
+      "confidence": 0.1621,
+      "bbox": [
+        544.2,
+        0.0,
+        687.1,
+        40.4
+      ],
+      "estimated_size_mm": 94.3
+    },
+    {
+      "class_name": "damaged",
+      "class_id": 1,
+      "confidence": 0.1563,
+      "bbox": [
+        208.1,
+        273.9,
+        344.4,
+        419.2
+      ],
+      "estimated_size_mm": 119.6
+    },
+    {
+      "class_name": "rotten",
+      "class_id": 2,
+      "confidence": 0.1513,
+      "bbox": [
+        948.5,
+        196.7,
+        1150.9,
+        379.5
+      ],
+      "estimated_size_mm": 156.4
+    }
+  ]
+}

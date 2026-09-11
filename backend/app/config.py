@@ -59,6 +59,7 @@ class Settings(BaseSettings):
     upload_dir: Path = BACKEND_ROOT / "uploads"    # uploaded batch images
     report_dir: Path = BACKEND_ROOT / "reports"    # generated PDF reports
     grading_config_path: Path = BACKEND_ROOT / "config" / "grading_config.json"
+    nccf_spec_path: Path = BACKEND_ROOT / "config" / "nccf_specifications.json"
 
 
 settings = Settings()

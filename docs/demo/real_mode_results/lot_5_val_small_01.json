@@ -1,0 +1,88 @@
+{
+  "lot_id": "lot_5_val_small_01",
+  "image": "small_opencv_frame_0_jpg.rf.TmGEPtp3KA69MZN3zpGC.jpg",
+  "is_demo": false,
+  "model_version": "yolo11n-onion_yolo",
+  "inference_ms": 91.0,
+  "detections_count": 3,
+  "counts": {
+    "total_onions": 3,
+    "healthy": 0,
+    "damaged": 3,
+    "rotten": 0,
+    "sprouted": 0,
+    "undersized": 0,
+    "cut_crack": 0,
+    "smut": 0,
+    "discoloured": 0,
+    "fresh_roots": 0
+  },
+  "avg_confidence": 0.8799,
+  "urs_percentage": 0.0,
+  "nccf_result": {
+    "specification_id": "NCCF_PAACS_2026",
+    "specification_name": "NCCF PAACS FPO/PACS Procurement Specification 2026 (relaxed)",
+    "batch_grade": "NON_QUALIFYING",
+    "total_onions": 3,
+    "grade_a_count": 0,
+    "grade_urs_count": 0,
+    "non_qualifying_count": 3,
+    "grade_a_pct": 0.0,
+    "grade_urs_pct": 0.0,
+    "non_qualifying_pct": 100.0,
+    "reasons": [
+      "Specification: NCCF PAACS FPO/PACS Procurement Specification 2026 (relaxed)",
+      "Grade A: 0/3 (0.0%)",
+      "Grade URS: 0/3 (0.0%)",
+      "Non-qualifying: 3/3 (100.0%)",
+      "Defect breakdown: damaged: 3",
+      "NOTE: AI-based visual pre-grading per NCCF 2026 specifications."
+    ]
+  },
+  "mvp_result": {
+    "quality_score": 40.0,
+    "grade": "C",
+    "reasons": [
+      "3/3 onions non-healthy (defect 100.0%) -60.0 pts",
+      "NOTE: grade per OUR MVP thresholds (mvp_scoring), not an official standard."
+    ]
+  },
+  "detections": [
+    {
+      "class_name": "damaged",
+      "class_id": 1,
+      "confidence": 0.9098,
+      "bbox": [
+        315.3,
+        196.5,
+        397.5,
+        251.1
+      ],
+      "estimated_size_mm": 69.3
+    },
+    {
+      "class_name": "damaged",
+      "class_id": 1,
+      "confidence": 0.8751,
+      "bbox": [
+        218.3,
+        162.0,
+        282.1,
+        214.1
+      ],
+      "estimated_size_mm": 61.2
+    },
+    {
+      "class_name": "damaged",
+      "class_id": 1,
+      "confidence": 0.8549,
+      "bbox": [
+        150.6,
+        193.0,
+        210.2,
+        253.8
+      ],
+      "estimated_size_mm": 62.6
+    }
+  ]
+}

@@ -1,10 +1,15 @@
 # ============================================================
 # YOLO dataset contract — Onion Quality AI
+# 8-class system aligned with NCCF 2026 procurement specifications.
 # Classes (STABLE contract, never renumber):
-#   0 = onion     (healthy bulb)
-#   1 = damaged   (physical damage / broken skin)
-#   2 = rotten    (decay / mould)
-#   3 = sprouted  (green sprout emerging)
+#   0 = onion        (healthy bulb)
+#   1 = damaged      (generic physical damage)
+#   2 = rotten       (decay / soft rot / fungal rot)
+#   3 = sprouted     (green sprout emerging)
+#   4 = cut_crack    (cuts, cracks)
+#   5 = smut         (black smut / mut infection)
+#   6 = discoloured  (staining / discoloration)
+#   7 = fresh_roots  (rooting / rooted)
 # Layout guide: docs/dataset/DATASET_GUIDE.md
 # ============================================================
 
@@ -14,5 +19,5 @@ path: ml/dataset
 train: images/train
 val: images/val
 
-nc: 4
-names: [onion, damaged, rotten, sprouted]
+nc: 8
+names: [onion, damaged, rotten, sprouted, cut_crack, smut, discoloured, fresh_roots]

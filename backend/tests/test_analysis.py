@@ -26,11 +26,16 @@ def test_analyze_response_schema(client):
     body = res.json()
 
     # Backend -> Mobile contract fields (docs/api/API_CONTRACT.md)
+    # Includes both legacy fields and new NCCF fields
     for field in (
         "batch_id", "total_onions", "healthy", "damaged", "rotten", "sprouted",
         "undersized", "defect_percentage", "quality_score", "grade",
         "urs_percentage", "confidence", "reasons", "is_demo", "model_version",
         "assessment_id", "image_id", "detections",
+        # NCCF fields
+        "grade_a_count", "grade_urs_count", "non_qualifying_count",
+        "specification_id", "nccf_grade", "defect_breakdown", "manual_flags",
+        "onion_grades",
     ):
         assert field in body, f"missing contract field: {field}"
 
@@ -39,11 +44,19 @@ def test_analyze_response_schema(client):
     assert body["model_version"] == "demo-v0"
     assert 0 <= body["quality_score"] <= 100
     assert body["grade"] in ("A", "B", "C", "D")
+    assert body["nccf_grade"] in ("GRADE_A", "GRADE_URS", "NON_QUALIFYING")
     assert body["confidence"] == round(body["confidence"], 1)
 
-    # Buckets are mutually exclusive and sum to total
     total = body["total_onions"]
     assert total > 0
+
+    # NCCF grade counts sum to total
+    assert (
+        body["grade_a_count"] + body["grade_urs_count"] + body["non_qualifying_count"]
+        == total
+    )
+
+    # Legacy buckets sum to total
     assert (
         body["healthy"] + body["damaged"] + body["rotten"]
         + body["sprouted"] + body["undersized"] == total
@@ -53,7 +66,11 @@ def test_analyze_response_schema(client):
     det = body["detections"][0]
     for field in ("class_name", "class_id", "confidence", "bbox"):
         assert field in det
-    assert det["class_name"] in ("onion", "damaged", "rotten", "sprouted")
+    assert det["class_name"] in (
+        "onion", "damaged", "rotten", "sprouted",
+        "cut_crack", "smut", "discoloured", "fresh_roots",
+    )
+    assert 0 <= det["class_id"] <= 7
     assert len(det["bbox"]) == 4
 
 
@@ -62,6 +79,7 @@ def test_analyze_is_deterministic_per_image(client):
     r2 = _upload(client).json()
     assert r1["total_onions"] == r2["total_onions"]      # same bytes -> same demo result
     assert r1["healthy"] == r2["healthy"]
+    assert r1["grade_a_count"] == r2["grade_a_count"]
 
 
 def test_analyze_then_get_assessment(client):
@@ -73,6 +91,7 @@ def test_analyze_then_get_assessment(client):
     assessment = res.json()
     assert assessment["assessment_id"] == analyzed["assessment_id"]
     assert assessment["grade"] in ("A", "B", "C", "D")
+    assert assessment["nccf_grade"] in ("GRADE_A", "GRADE_URS", "NON_QUALIFYING")
 
 
 def test_analyze_unknown_batch_404(client):

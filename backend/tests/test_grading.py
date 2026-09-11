@@ -1,4 +1,4 @@
-"""Grading engine unit tests — MVP logic must be config-driven and explainable."""
+"""Grading engine unit tests — MVP logic + NCCF integration."""
 
 import pytest
 
@@ -13,11 +13,15 @@ def config():
 def _counts(**overrides):
     base = {
         "total_onions": 50,
-        "healthy": 45,
+        "healthy": 40,
         "damaged": 2,
         "rotten": 1,
         "sprouted": 1,
         "undersized": 1,
+        "cut_crack": 2,
+        "smut": 1,
+        "discoloured": 1,
+        "fresh_roots": 1,
     }
     base.update(overrides)
     return base
@@ -26,8 +30,6 @@ def _counts(**overrides):
 def test_config_loads_and_has_required_sections(config):
     assert "mvp_scoring" in config
     assert "urs" in config
-    assert "official_standards_TO_VERIFY" in config
-    assert config["official_standards_TO_VERIFY"]["status"].startswith("NOT VERIFIED")
     weights = config["mvp_scoring"]["weights"]
     assert abs(weights["defect"] + weights["urs"] + weights["confidence"] - 1.0) < 1e-9
 
@@ -40,10 +42,16 @@ def test_grade_bounds_and_type(config):
 
 
 def test_worse_quality_gives_lower_score(config):
-    good = grade_batch(_counts(healthy=49, damaged=0, rotten=0, sprouted=0, undersized=1),
-                       urs_percentage=2.0, avg_confidence=0.95, config=config)
-    bad = grade_batch(_counts(healthy=5, damaged=20, rotten=15, sprouted=5, undersized=5),
-                      urs_percentage=30.0, avg_confidence=0.6, config=config)
+    good = grade_batch(
+        _counts(healthy=49, damaged=0, rotten=0, sprouted=0, undersized=1,
+                cut_crack=0, smut=0, discoloured=0, fresh_roots=0),
+        urs_percentage=2.0, avg_confidence=0.95, config=config,
+    )
+    bad = grade_batch(
+        _counts(healthy=5, damaged=10, rotten=10, sprouted=5, undersized=5,
+                cut_crack=5, smut=5, discoloured=3, fresh_roots=2),
+        urs_percentage=30.0, avg_confidence=0.6, config=config,
+    )
     assert bad["quality_score"] < good["quality_score"]
     _rank = {"A": 0, "B": 1, "C": 2, "D": 3}
     assert _rank[bad["grade"]] > _rank[good["grade"]]  # D is worst
@@ -73,12 +81,41 @@ def test_aggregate_counts_buckets_sum_to_total(config):
         + [{"class_name": "damaged"}] * 2
         + [{"class_name": "rotten"}] * 1
         + [{"class_name": "sprouted"}] * 1
+        + [{"class_name": "cut_crack"}] * 1
+        + [{"class_name": "smut"}] * 1
+        + [{"class_name": "discoloured"}] * 1
+        + [{"class_name": "fresh_roots"}] * 1
     )
     counts = aggregate_counts(detections, config=config)
-    assert sum(counts[k] for k in ("healthy", "damaged", "rotten", "sprouted", "undersized")) \
-        == counts["total_onions"] == 14
+    all_counted = sum(
+        counts[k] for k in (
+            "healthy", "damaged", "rotten", "sprouted", "undersized",
+            "cut_crack", "smut", "discoloured", "fresh_roots",
+        )
+    )
+    assert all_counted == counts["total_onions"] == 18
     assert counts["undersized"] == 3
     assert counts["rotten"] == 1
+    assert counts["cut_crack"] == 1
+    assert counts["smut"] == 1
+
+
+def test_aggregate_counts_new_classes(config):
+    """Verify the 4 new NCCF classes are counted correctly."""
+    detections = (
+        [{"class_name": "cut_crack"}] * 3
+        + [{"class_name": "smut"}] * 2
+        + [{"class_name": "discoloured"}] * 4
+        + [{"class_name": "fresh_roots"}] * 1
+        + [{"class_name": "onion", "estimated_size_mm": 55.0}] * 5
+    )
+    counts = aggregate_counts(detections, config=config)
+    assert counts["cut_crack"] == 3
+    assert counts["smut"] == 2
+    assert counts["discoloured"] == 4
+    assert counts["fresh_roots"] == 1
+    assert counts["healthy"] == 5
+    assert counts["total_onions"] == 15
 
 
 def test_missing_config_fails_loudly(tmp_path, monkeypatch):

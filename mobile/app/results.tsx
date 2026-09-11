@@ -45,7 +45,7 @@ export default function ResultsScreen() {
       {assessment.confidence < 70 ? (
         <View style={styles.warningBanner}>
           <Text style={styles.warningBannerText}>
-            ⚠ LOW CONFIDENCE ({assessment.confidence}%) — Please recapture image or verify manually
+            ⚠ LOW CONFIDENCE ({assessment.confidence}%) — Please recapture image
           </Text>
         </View>
       ) : null}
@@ -64,13 +64,23 @@ export default function ResultsScreen() {
           <Text style={styles.metricLabel}>Grade A</Text>
           <Text style={styles.metricValue}>
             {assessment.total_onions > 0 
-              ? ((assessment.healthy / assessment.total_onions) * 100).toFixed(1) 
+              ? (
+                  (
+                    (assessment.grade_a_count !== undefined 
+                      ? assessment.grade_a_count 
+                      : assessment.healthy) / assessment.total_onions
+                  ) * 100
+                ).toFixed(1) 
               : 0}%
           </Text>
         </View>
         <View style={styles.metricCard}>
-          <Text style={styles.metricLabel}>URS</Text>
-          <Text style={styles.metricValue}>{assessment.urs_percentage.toFixed(1)}%</Text>
+          <Text style={styles.metricLabel}>Grade URS</Text>
+          <Text style={styles.metricValue}>
+            {assessment.total_onions > 0 && assessment.grade_urs_count !== undefined
+              ? ((assessment.grade_urs_count / assessment.total_onions) * 100).toFixed(1)
+              : assessment.urs_percentage.toFixed(1)}%
+          </Text>
         </View>
       </View>
 

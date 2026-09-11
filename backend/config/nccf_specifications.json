@@ -1,0 +1,159 @@
+{
+  "_meta": {
+    "purpose": "NCCF 2026 onion procurement specifications for the rule engine.",
+    "source_documents": [
+      {
+        "id": "NCCF_EOI_2026",
+        "title": "NCCF EOI for Empanelment of Eligible Surveyors 2026",
+        "url": "https://www.nccfindia.com/documents/20121/42406/1776083511371_-_EOIEMPANELMENTFORELIGIBLESURVEYORS.pdf",
+        "ref_number": "NCCF/EOI/2026-27/2905",
+        "pages": "19-20"
+      },
+      {
+        "id": "NCCF_PAACS_2026",
+        "title": "NCCF EOI for Empanelment of Support Agencies (FPO/PACS) 2026",
+        "url": "https://www.nccfindia.com/documents/20121/42406/1782229402713_-_PAACS.pdf",
+        "ref_number": "NCCF/HO/BUSS/ONION/2026-27/",
+        "date": "23/06/2026",
+        "pages": "22-23 (Annexure I)"
+      }
+    ],
+    "last_verified": "2026-09-10",
+    "verified_by": "Extracted from official NCCF PDF documents"
+  },
+
+  "specifications": {
+    "NCCF_EOI_2026": {
+      "name": "NCCF EOI Surveyor Specification 2026 (strict)",
+      "description": "Standard Grade-A only specification from the EOI Surveyor document. Zero tolerance on all listed defects.",
+      "size_range_mm": { "min": 45, "max": 65 },
+      "has_urs_grade": false,
+      "general_requirements": [
+        "Clean, dry (first two skins + stem completely dry)",
+        "Well-formed, uniform in shape/size/colour",
+        "Well cured, fully matured",
+        "Reasonably firm with tough clinging outer skin",
+        "Closed neck",
+        "Free from foreign smell and/or taste",
+        "Free from moisture",
+        "Free from cut/crack and any type of damage",
+        "Sound and free from decay, smut, rotting, insect infestation",
+        "Free from neck rot and bacterial soft rot"
+      ],
+      "non_visual_requirements": [
+        "Reasonably firm",
+        "Sufficiently dried/cured",
+        "Free from foreign smell and/or taste",
+        "Mature, solid in feel"
+      ],
+      "grade_a": {
+        "cut_crack": { "allowed": false },
+        "without_skin": { "allowed": false },
+        "ruptured_skin": { "allowed": false },
+        "fresh_roots": { "allowed": false },
+        "staining_discoloration": { "allowed": false },
+        "thick_neck": { "allowed": false },
+        "open_neck": { "allowed": false },
+        "dry_sun_scald": { "allowed": false },
+        "sunburn": { "allowed": false },
+        "seed_stem": { "allowed": false },
+        "double_misshape": { "allowed": false },
+        "sprouted": { "allowed": false },
+        "mechanical_injury": { "allowed": false },
+        "smut": { "allowed": false },
+        "slimy_soft_rot": { "allowed": false },
+        "bacterial_soft_neck_rot": { "allowed": false },
+        "rot_rotting_fungal": { "allowed": false },
+        "damaged": { "allowed": false }
+      }
+    },
+
+    "NCCF_PAACS_2026": {
+      "name": "NCCF PAACS FPO/PACS Procurement Specification 2026 (relaxed)",
+      "description": "Relaxed procurement specification with Grade-A and Grade-URS differentiation. From Annexure I of the PAACS FPO/PACS EOI document.",
+      "size_range_mm": { "min": 35, "max": 70 },
+      "has_urs_grade": true,
+      "general_requirements": [
+        "Sufficiently dried (first two dry skins and stem completely dry)",
+        "Free from abnormal external moisture",
+        "Free from foreign smell and/or taste",
+        "Stem twisted or clean cut, not more than 4 cm long",
+        "Mature, solid in feel, reasonably firm",
+        "Firm, neck dry and thin",
+        "Intact flesh not exposed",
+        "Skin colour typical of the cultivar"
+      ],
+      "non_visual_requirements": [
+        "Reasonably firm with tough clinging skins",
+        "Sufficiently dried for intended use",
+        "Free from foreign smell and/or taste",
+        "Mature, solid in feel",
+        "Moisture content optimum for storage"
+      ],
+      "grade_a": {
+        "cut_crack": { "allowed": false },
+        "without_skin": { "allowed": false },
+        "ruptured_skin": { "allowed": false },
+        "fresh_roots": { "allowed": false },
+        "staining_discoloration": { "allowed": true, "max_surface_pct": 30.0 },
+        "thick_neck": { "allowed": true, "max_diameter_mm": 5.0 },
+        "open_neck": { "allowed": false },
+        "dry_sun_scald": { "allowed": false },
+        "sunburn": { "allowed": false },
+        "seed_stem": { "allowed": false },
+        "double_misshape": { "allowed": false },
+        "sprouted": { "allowed": false },
+        "mechanical_injury": { "allowed": false },
+        "smut": { "allowed": true, "max_surface_pct": 10.0 },
+        "slimy_soft_rot": { "allowed": false },
+        "bacterial_soft_neck_rot": { "allowed": false },
+        "rot_rotting_fungal": { "allowed": false },
+        "damaged": { "allowed": false }
+      },
+      "grade_urs": {
+        "cut_crack": { "allowed": false },
+        "without_skin": { "allowed": true, "note": "Single skin allowed" },
+        "ruptured_skin": { "allowed": false },
+        "fresh_roots": { "allowed": false },
+        "staining_discoloration": { "allowed": true, "max_surface_pct": 40.0 },
+        "thick_neck": { "allowed": true, "max_diameter_mm": 5.0 },
+        "open_neck": { "allowed": false },
+        "dry_sun_scald": { "allowed": false },
+        "sunburn": { "allowed": true, "max_surface_pct": 10.0 },
+        "seed_stem": { "allowed": false },
+        "double_misshape": { "allowed": true },
+        "sprouted": { "allowed": false },
+        "mechanical_injury": { "allowed": false },
+        "smut": { "allowed": true, "max_surface_pct": 30.0 },
+        "slimy_soft_rot": { "allowed": false },
+        "bacterial_soft_neck_rot": { "allowed": false },
+        "rot_rotting_fungal": { "allowed": false },
+        "damaged": { "allowed": false }
+      }
+    }
+  },
+
+  "active_specification": "NCCF_PAACS_2026",
+
+  "_defect_to_yolo_class_mapping": {
+    "_note": "Maps NCCF defect feature names to YOLO class names where available. Features with null mapping require manual inspection or additional training data.",
+    "cut_crack": "cut_crack",
+    "without_skin": null,
+    "ruptured_skin": null,
+    "fresh_roots": "fresh_roots",
+    "staining_discoloration": "discoloured",
+    "thick_neck": null,
+    "open_neck": null,
+    "dry_sun_scald": null,
+    "sunburn": null,
+    "seed_stem": null,
+    "double_misshape": null,
+    "sprouted": "sprouted",
+    "mechanical_injury": "damaged",
+    "smut": "smut",
+    "slimy_soft_rot": "rotten",
+    "bacterial_soft_neck_rot": null,
+    "rot_rotting_fungal": "rotten",
+    "damaged": "damaged"
+  }
+}
