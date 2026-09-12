@@ -23,7 +23,9 @@ import {
 export const API_BASE_URL: string =
   process.env.EXPO_PUBLIC_API_URL ??
   (typeof window !== "undefined"
-    ? `${window.location.protocol}//${window.location.hostname}:8000`
+    ? (["8081", "8082", "19006"].includes(window.location.port)
+        ? `${window.location.protocol}//${window.location.hostname}:8000`
+        : window.location.origin)
     : "http://localhost:8000");
 
 const TIMEOUT_MS = 15_000;

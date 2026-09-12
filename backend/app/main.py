@@ -119,13 +119,40 @@ async def unhandled_error_handler(request: Request, exc: Exception):
     )
 
 
-@app.get("/", tags=["meta"], summary="Service banner")
-def root() -> dict:
-    return {
-        "service": settings.app_name,
-        "version": settings.version,
-        "demo_mode": settings.demo_mode,
-        "docs": "/docs",
-        "health": f"{settings.api_prefix}/health",
-        "notice": "DEMO MODE returns synthetic data flagged is_demo=true." if settings.demo_mode else None,
-    }
+# --- Serve Web Frontend (Expo Web Export) -----------------------------------
+from pathlib import Path
+from fastapi.responses import FileResponse
+
+dist_dir = Path(__file__).resolve().parents[2] / "mobile" / "dist"
+if dist_dir.exists():
+    if (dist_dir / "_expo").exists():
+        app.mount("/_expo", StaticFiles(directory=str(dist_dir / "_expo")), name="expo")
+    if (dist_dir / "assets").exists():
+        app.mount("/assets", StaticFiles(directory=str(dist_dir / "assets")), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa(request: Request, full_path: str):
+        if (
+            full_path.startswith("api")
+            or full_path.startswith("docs")
+            or full_path.startswith("redoc")
+            or full_path.startswith("openapi.json")
+            or full_path.startswith("uploads")
+        ):
+            raise StarletteHTTPException(status_code=404, detail="Not Found")
+        target_file = dist_dir / full_path
+        if target_file.is_file():
+            return FileResponse(target_file)
+        return FileResponse(dist_dir / "index.html")
+else:
+    @app.get("/", tags=["meta"], summary="Service banner")
+    def root() -> dict:
+        return {
+            "service": settings.app_name,
+            "version": settings.version,
+            "demo_mode": settings.demo_mode,
+            "docs": "/docs",
+            "health": f"{settings.api_prefix}/health",
+            "notice": "DEMO MODE returns synthetic data flagged is_demo=true." if settings.demo_mode else None,
+        }
+

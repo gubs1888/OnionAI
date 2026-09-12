@@ -16,9 +16,10 @@ RUN apt-get update && apt-get install -y \
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy both the backend logic and the ML models/configurations
+# Copy backend logic, ML models, and mobile web dist
 COPY backend/ /app/backend/
 COPY ml/ /app/ml/
+COPY mobile/ /app/mobile/
 
 # Set working directory to backend where the FastAPI app lives
 WORKDIR /app/backend

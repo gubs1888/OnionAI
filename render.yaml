@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: onion-quality-ai
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: singapore
+    envVars:
+      - key: DEMO_MODE
+        value: "true"
+      - key: DEBUG
+        value: "false"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: onion-postgres
+          property: connectionString
+
+databases:
+  - name: onion-postgres
+    plan: free
+    databaseName: onion_quality
+    user: onion

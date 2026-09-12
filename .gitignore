@@ -24,6 +24,7 @@ node_modules/
 .expo/
 web-build/
 dist/
+!mobile/dist/
 npm-debug.log*
 yarn-error.log*
 package-lock.json.bak
