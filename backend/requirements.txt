@@ -31,3 +31,7 @@ reportlab>=4.2.0
 # --- Testing ---
 pytest>=8.2.0
 httpx>=0.27.0                 # required by FastAPI TestClient
+
+# --- OpenCV (for GrabCut bounding boxes) ---
+opencv-python-headless>=4.8.0
+numpy>=1.26.0
