@@ -32,10 +32,8 @@ class Settings(BaseSettings):
     debug: bool = False
 
     # --- DEMO MODE ---------------------------------------------------------
-    # True  -> /api/analyze returns deterministic synthetic detections that are
-    #          ALWAYS flagged `is_demo=true`. Lets all 4 teams work before the
-    #          real YOLO model exists.  False -> a real model file is REQUIRED.
-    demo_mode: bool = True
+    # False -> Real YOLO11n AI inference model loaded from settings.model_path
+    demo_mode: bool = False
 
     # --- HTTP ---
     api_prefix: str = "/api"
