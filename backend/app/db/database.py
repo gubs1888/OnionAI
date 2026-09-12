@@ -16,13 +16,17 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from app.config import BACKEND_ROOT, settings
 
+db_url = settings.database_url
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+
 _connect_args = {}
-if settings.database_url.startswith("sqlite"):
+if db_url.startswith("sqlite"):
     # SQLite needs this to work with FastAPI's threadpool.
     _connect_args = {"check_same_thread": False}
 
 engine = create_engine(
-    settings.database_url,
+    db_url,
     connect_args=_connect_args,
     pool_pre_ping=True,          # survive transient DB restarts
     future=True,
