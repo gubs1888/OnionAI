@@ -1,22 +1,28 @@
-/**
- * RESULTS — the full assessment contract on one screen:
- * grade, quality score, counts, defect %, URS %, confidence, reasons.
- */
-
-import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import DefectChart from "../components/DefectChart";
-import GradeBadge from "../components/GradeBadge";
 import ResultCard from "../components/ResultCard";
+import Banner from "../components/ui/Banner";
+import Button from "../components/ui/Button";
+import Card from "../components/ui/Card";
+import CountUp from "../components/ui/CountUp";
+import GradeRing from "../components/ui/GradeRing";
+import MeterBar from "../components/ui/MeterBar";
+import SectionTitle from "../components/ui/SectionTitle";
+import { SkeletonCard } from "../components/ui/Skeleton";
+import StatTile from "../components/ui/StatTile";
 import { getAssessment } from "../services/api";
+import { colors, layout, radius, shadows, typography } from "../theme";
 import { Assessment } from "../types/assessment";
 
 export default function ResultsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ batchCode?: string | string[] }>();
-  const pBatchCode = Array.isArray(params.batchCode) ? params.batchCode[0] : params.batchCode;
+  const pBatchCode = Array.isArray(params.batchCode)
+    ? params.batchCode[0]
+    : params.batchCode;
   const batchCode = pBatchCode || "DEMO-001";
   const [assessment, setAssessment] = useState<Assessment | null>(null);
 
@@ -26,156 +32,265 @@ export default function ResultsScreen() {
 
   if (!assessment) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.loading}>Loading assessment…</Text>
-      </View>
+      <ScrollView style={styles.screen} contentContainerStyle={styles.centerContainer}>
+        <View style={styles.webWrapper}>
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </View>
+      </ScrollView>
     );
   }
 
+  const isLowConfidence = assessment.confidence < 70;
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      {assessment.is_demo ? (
-        <View style={styles.demoBanner}>
-          <Text style={styles.demoBannerText}>
-            DEMO DATA — synthetic result, not real AI output
-          </Text>
-        </View>
-      ) : null}
+      <View style={styles.webWrapper}>
+        {/* DEMO Banner — mandatory unmissable strip when is_demo */}
+        {assessment.is_demo ? (
+          <Banner
+            variant="demo"
+            message="DEMO DATA — synthetic result, not real AI output"
+          />
+        ) : (
+          <Banner
+            variant="success"
+            message="Verified AI analysis"
+          />
+        )}
 
-      {assessment.confidence < 70 ? (
-        <View style={styles.warningBanner}>
-          <Text style={styles.warningBannerText}>
-            ⚠ LOW CONFIDENCE ({assessment.confidence}%) — Please recapture image
-          </Text>
-        </View>
-      ) : null}
 
-      <View style={styles.headerRow}>
-        <GradeBadge grade={assessment.grade} />
-        <View style={styles.headerText}>
-          <Text style={styles.batch}>{assessment.batch_id}</Text>
-          <Text style={styles.score}>{assessment.quality_score.toFixed(1)} / 100</Text>
-          <Text style={styles.model}>{assessment.model_version}</Text>
+
+        {/* Grade Hero Card */}
+        <Card style={styles.heroCard}>
+          <View style={styles.heroRow}>
+            <GradeRing grade={assessment.grade} score={assessment.quality_score} />
+            <View style={styles.heroMeta}>
+              <Text style={styles.batchCode}>{assessment.batch_id}</Text>
+            </View>
+          </View>
+        </Card>
+
+        {/* Counts 2x3 Grid */}
+        <SectionTitle title="Batch Counts" subtitle="Total bulbs inspected and defect distribution" />
+        <View style={styles.grid}>
+          <View style={styles.gridRow}>
+            <StatTile
+              label="Total Bulbs"
+              value={assessment.total_onions}
+              bgColor={colors.bg}
+              style={styles.gridItem}
+            />
+            <StatTile
+              label="Healthy"
+              value={assessment.healthy}
+              colorDot={colors.category.healthy}
+              dimmed={assessment.healthy === 0}
+              style={styles.gridItem}
+            />
+          </View>
+          <View style={styles.gridRow}>
+            <StatTile
+              label="Damaged"
+              value={assessment.damaged}
+              colorDot={colors.category.damaged}
+              dimmed={assessment.damaged === 0}
+              style={styles.gridItem}
+            />
+            <StatTile
+              label="Rotten"
+              value={assessment.rotten}
+              colorDot={colors.category.rotten}
+              dimmed={assessment.rotten === 0}
+              style={styles.gridItem}
+            />
+          </View>
+          <View style={styles.gridRow}>
+            <StatTile
+              label="Sprouted"
+              value={assessment.sprouted}
+              colorDot={colors.category.sprouted}
+              dimmed={assessment.sprouted === 0}
+              style={styles.gridItem}
+            />
+            <StatTile
+              label="Undersized"
+              value={assessment.undersized}
+              colorDot={colors.category.undersized}
+              dimmed={assessment.undersized === 0}
+              style={styles.gridItem}
+            />
+          </View>
         </View>
+
+        {/* Defect Chart */}
+        <DefectChart
+          counts={{
+            healthy: assessment.healthy,
+            damaged: assessment.damaged,
+            rotten: assessment.rotten,
+            sprouted: assessment.sprouted,
+            undersized: assessment.undersized,
+          }}
+        />
+
+        {/* Key Quality Metrics MeterBars */}
+        <Card title="Quality Indicators" style={{ marginVertical: 12 }}>
+          <MeterBar
+            label="Defect Rate"
+            value={assessment.defect_percentage}
+            color={colors.amber}
+          />
+          <MeterBar
+            label="URS (Under Relaxed Specs)"
+            value={assessment.urs_percentage}
+            color={colors.red}
+          />
+        </Card>
+
+        {/* Full Contract Rows Card */}
+        <ResultCard assessment={assessment} />
+
+        {/* Reasons Card */}
+        <Card title="Grade Rationale" style={{ marginBottom: 20 }}>
+          {assessment.reasons.length === 0 ? (
+            <Text style={styles.noReasons}>No deductions recorded for this lot.</Text>
+          ) : (
+            assessment.reasons.map((reason, idx) => (
+              <View key={idx} style={styles.reasonRow}>
+                <View style={styles.reasonDot} />
+                <Text style={styles.reasonText}>{reason}</Text>
+              </View>
+            ))
+          )}
+        </Card>
+
+        {/* Actions */}
+        <Button
+          label="View PDF Report →"
+          onPress={() =>
+            router.push({
+              pathname: "/report",
+              params: {
+                assessmentId: String(assessment.assessment_id),
+                batchCode,
+              },
+            })
+          }
+          variant="primary"
+          size="lg"
+          style={{ marginBottom: 12 }}
+        />
+
+        <Button
+          label="Analyze Another Batch"
+          onPress={() => router.dismissTo("/")}
+          variant="secondary"
+          size="lg"
+        />
       </View>
-
-      <View style={styles.metricsRow}>
-        <View style={styles.metricCard}>
-          <Text style={styles.metricLabel}>Grade A</Text>
-          <Text style={styles.metricValue}>
-            {assessment.total_onions > 0 
-              ? (
-                  (
-                    (assessment.grade_a_count !== undefined 
-                      ? assessment.grade_a_count 
-                      : assessment.healthy) / assessment.total_onions
-                  ) * 100
-                ).toFixed(1) 
-              : 0}%
-          </Text>
-        </View>
-        <View style={styles.metricCard}>
-          <Text style={styles.metricLabel}>Grade URS</Text>
-          <Text style={styles.metricValue}>
-            {assessment.total_onions > 0 && assessment.grade_urs_count !== undefined
-              ? ((assessment.grade_urs_count / assessment.total_onions) * 100).toFixed(1)
-              : assessment.urs_percentage.toFixed(1)}%
-          </Text>
-        </View>
-      </View>
-
-      <ResultCard assessment={assessment} />
-      <DefectChart
-        counts={{
-          healthy: assessment.healthy,
-          damaged: assessment.damaged,
-          rotten: assessment.rotten,
-          sprouted: assessment.sprouted,
-          undersized: assessment.undersized,
-        }}
-      />
-
-      <Text style={styles.sectionTitle}>Reasons</Text>
-      {assessment.reasons.length === 0 ? (
-        <Text style={styles.reason}>No deductions.</Text>
-      ) : (
-        assessment.reasons.map((reason, i) => (
-          <Text key={i} style={styles.reason}>
-            • {reason}
-          </Text>
-        ))
-      )}
-
-      <Pressable
-        style={styles.primary}
-        onPress={() =>
-          router.push({
-            pathname: "/report",
-            params: { assessmentId: String(assessment.assessment_id), batchCode },
-          })
-        }
-      >
-        <Text style={styles.primaryText}>View report →</Text>
-      </Pressable>
-      <Pressable style={styles.secondary} onPress={() => router.replace("/")}>
-        <Text style={styles.secondaryText}>Analyze another batch</Text>
-      </Pressable>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  content: { padding: 20, paddingBottom: 48 },
-  center: { flex: 1, alignItems: "center", justifyContent: "center" },
-  loading: { color: "#6B7280" },
-  demoBanner: {
-    backgroundColor: "#F59E0B",
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 16,
-  },
-  demoBannerText: { color: "#fff", fontWeight: "800", textAlign: "center", fontSize: 13 },
-  warningBanner: {
-    backgroundColor: "#FBBF24",
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 16,
-  },
-  warningBannerText: { color: "#000", fontWeight: "700", textAlign: "center", fontSize: 13 },
-  headerRow: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
-  headerText: { marginLeft: 16 },
-  batch: { fontSize: 16, fontWeight: "700", color: "#111827" },
-  score: { fontSize: 22, fontWeight: "800", color: "#14532D" },
-  model: { fontSize: 11, color: "#9CA3AF" },
-  metricsRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 16 },
-  metricCard: {
+  screen: {
     flex: 1,
-    backgroundColor: "#F3F4F6",
-    borderRadius: 12,
+    backgroundColor: colors.bg,
+  },
+  content: {
     padding: 16,
+    paddingBottom: 40,
+    alignItems: "center",
+  },
+  centerContainer: {
+    padding: 16,
+    alignItems: "center",
+  },
+  webWrapper: {
+    width: "100%",
+    maxWidth: layout.maxWebWidth,
+  },
+  heroCard: {
+    backgroundColor: colors.surface,
+    padding: 20,
+    marginBottom: 8,
+  },
+  heroRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  heroMeta: {
+    marginLeft: 20,
+    flex: 1,
+  },
+  batchCode: {
+    ...typography.title1,
+    fontSize: 28,
+    color: colors.primary,
+    fontWeight: "800",
+  },
+  scoreCaption: {
+    ...typography.caption,
+    color: colors.inkMuted,
+    marginTop: 2,
+  },
+  scoreRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    marginVertical: 2,
+  },
+  scoreNumber: {
+    ...typography.title1,
+    fontSize: 26,
+    color: colors.ink,
+    fontWeight: "900",
+  },
+  scoreMax: {
+    ...typography.caption,
+    color: colors.inkMuted,
+    fontSize: 13,
+  },
+  modelVersion: {
+    ...typography.micro,
+    color: colors.inkMuted,
+    marginTop: 4,
+  },
+  grid: {
+    marginBottom: 8,
+  },
+  gridRow: {
+    flexDirection: "row",
+    marginBottom: 10,
+  },
+  gridItem: {
+    flex: 1,
     marginHorizontal: 4,
-    alignItems: "center",
   },
-  metricLabel: { fontSize: 14, color: "#4B5563", fontWeight: "600", marginBottom: 4 },
-  metricValue: { fontSize: 22, color: "#16A34A", fontWeight: "800" },
-  sectionTitle: { fontSize: 16, fontWeight: "700", color: "#111827", marginTop: 20, marginBottom: 8 },
-  reason: { fontSize: 12, color: "#4B5563", lineHeight: 18 },
-  primary: {
-    backgroundColor: "#16A34A",
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: "center",
-    marginTop: 24,
+  reasonRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginVertical: 4,
   },
-  primaryText: { color: "#fff", fontSize: 16, fontWeight: "700" },
-  secondary: {
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    paddingVertical: 14,
-    alignItems: "center",
-    marginTop: 10,
+  reasonDot: {
+    width: 6,
+    height: 6,
+    borderRadius: radius.pill,
+    backgroundColor: colors.amber,
+    marginTop: 7,
+    marginRight: 10,
   },
-  secondaryText: { color: "#374151", fontWeight: "600" },
+  reasonText: {
+    ...typography.body,
+    fontFamily: typography.mono.fontFamily,
+    fontSize: 13,
+    color: colors.ink,
+    flex: 1,
+    lineHeight: 18,
+  },
+  noReasons: {
+    ...typography.caption,
+    color: colors.inkMuted,
+  },
 });

@@ -33,6 +33,7 @@ class Detection(Base):
     bbox: Mapped[list] = mapped_column(JSON, nullable=False)  # [x1, y1, x2, y2]
 
     # Filled by the size-estimation step; None when not yet estimated.
+    diameter_px: Mapped[float | None] = mapped_column(Float, nullable=True)
     estimated_size_mm: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

@@ -111,9 +111,6 @@ def generate_report(assessment, out_dir: Path | None = None) -> Path:
     
     if assessment.is_demo:
         story.append(Paragraph("DEMO DATA — NOT REAL AI OUTPUT — NOT FOR OFFICIAL USE", demo_style))
-        
-    if assessment.avg_confidence < 0.70:
-        story.append(Paragraph("⚠ LOW CONFIDENCE ASSESSMENT — Please recapture image", warning_style))
 
     meta = Table(
         [
@@ -152,13 +149,45 @@ def generate_report(assessment, out_dir: Path | None = None) -> Path:
                             "discoloured": (255, 255, 0),# Cyan
                             "fresh_roots": (0, 128, 128),# Teal
                         }
-                        for det in detections:
+                        # Draw detections
+                        y_offsets = {}  # Keep track of y coordinates to avoid text overlap
+                        debug_data = [["ID", "Class", "Conf", "Diam (px)", "Diam (mm)", "BBox (x1,y1,x2,y2)"]]
+                        
+                        for i, det in enumerate(detections, start=1):
                             color = color_map.get(det.class_name, (255, 255, 255))
+                            onion_id = det.id or i
+                            
                             if det.bbox and len(det.bbox) == 4:
                                 x1, y1, x2, y2 = map(int, det.bbox)
                                 cv2.rectangle(img_array, (x1, y1), (x2, y2), color, 3)
-                                label = f"{det.class_name} {det.confidence:.2f}"
-                                cv2.putText(img_array, label, (x1, max(y1 - 10, 0)), cv2.FONT_HERSHEY_SIMPLEX, 1.5, color, 3)
+                                
+                                # Format Label
+                                if getattr(det, 'estimated_size_mm', None) is not None:
+                                    label = f"Onion {onion_id} - {det.estimated_size_mm}mm"
+                                else:
+                                    label = f"Onion {onion_id} - {det.class_name} {det.confidence:.2f}"
+                                    
+                                # Vertical offset logic for overlapping labels and top-edge clipping
+                                text_y = y1 - 10
+                                if text_y < 25:
+                                    text_y = y1 + 35  # Drop text inside the box if it hits the top edge
+                                
+                                # Check if a label was already drawn near this Y coordinate for this X region
+                                key = (x1 // 50, text_y // 20)
+                                if key in y_offsets:
+                                    text_y += 35 * y_offsets[key]
+                                    y_offsets[key] += 1
+                                else:
+                                    y_offsets[key] = 1
+                                    
+                                cv2.putText(img_array, label, (x1, text_y), cv2.FONT_HERSHEY_SIMPLEX, 1.5, color, 3)
+                            
+                            # Add to debug table
+                            conf_str = f"{det.confidence:.2f}"
+                            px_str = f"{getattr(det, 'diameter_px', '-')} px"
+                            mm_str = f"{getattr(det, 'estimated_size_mm', '-')} mm"
+                            bbox_str = f"[{int(det.bbox[0])},{int(det.bbox[1])},{int(det.bbox[2])},{int(det.bbox[3])}]" if det.bbox else "-"
+                            debug_data.append([str(onion_id), det.class_name, conf_str, px_str, mm_str, bbox_str])
                         
                         fd, tmp_path = tempfile.mkstemp(suffix=".jpg")
                         os.close(fd)
@@ -174,6 +203,21 @@ def generate_report(assessment, out_dir: Path | None = None) -> Path:
                             display_width = display_height / aspect
                         
                         story.append(RLImage(tmp_path, width=display_width, height=display_height))
+                        story.append(Spacer(1, 6 * mm))
+                        
+                        # Add Debugging Table
+                        story.append(Paragraph("Detection Debugging Information", styles["Heading3"]))
+                        debug_table = Table(debug_data, colWidths=[15*mm, 30*mm, 15*mm, 25*mm, 25*mm, 45*mm])
+                        debug_table.setStyle(TableStyle([
+                            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#333333")),
+                            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+                            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                            ('FONTSIZE', (0, 0), (-1, -1), 8),
+                        ]))
+                        story.append(debug_table)
                         story.append(Spacer(1, 6 * mm))
     except Exception as e:
         print(f"Failed to generate annotated image: {e}")
@@ -230,13 +274,23 @@ def generate_report(assessment, out_dir: Path | None = None) -> Path:
     # --- Per-Onion Analysis & URS Disqualification Reasons ---
     onion_grades = list(assessment.onion_grades or [])
     if onion_grades:
-        story.append(Paragraph("Per-Onion Analysis & URS Specification Details", styles["Heading3"]))
+        story.append(Paragraph("Per-Onion Analysis & Quality Assessment Details", styles["Heading3"]))
         cell_style = ParagraphStyle("Cell", parent=styles["Normal"], fontSize=8, leading=10)
         grade_a_cell = ParagraphStyle("GA", parent=styles["Normal"], fontSize=8, leading=10, textColor=colors.HexColor("#16A34A"), fontName="Helvetica-Bold")
         grade_urs_cell = ParagraphStyle("GURS", parent=styles["Normal"], fontSize=8, leading=10, textColor=colors.HexColor("#D97706"), fontName="Helvetica-Bold")
         non_qual_cell = ParagraphStyle("NQ", parent=styles["Normal"], fontSize=8, leading=10, textColor=colors.HexColor("#DC2626"), fontName="Helvetica-Bold")
 
-        po_rows = [["Onion #", "Diameter", "Grade", "Defects", "URS Evaluation Details / Reasons"]]
+        defect_descriptions: dict[str, str] = {
+            "cut_crack": "Cut / Crack: Outer skin rupture or cracking exposing inner bulb tissue.",
+            "damaged": "Damaged: Mechanical injury, abrasion, or physical husk damage.",
+            "rotten": "Rotten: Fungal decay, soft rot, or tissue breakdown.",
+            "sprouted": "Sprouted: Green vegetative shoot emerging from bulb neck.",
+            "smut": "Smut: Black fungal spore lesions or smut accumulation.",
+            "discoloured": "Discoloured: Severe husk staining or discoloration.",
+            "fresh_roots": "Fresh Roots: Un-trimmed fibrous root mass protruding from base.",
+        }
+
+        po_rows = [["Onion #", "Diameter", "Grade", "Defects", "Quality & Evaluation Details"]]
         for i, item in enumerate(onion_grades):
             o_id = f"#{item.get('onion_id', i+1)}"
             dia_val = item.get("diameter_mm")
@@ -254,25 +308,40 @@ def generate_report(assessment, out_dir: Path | None = None) -> Path:
             def_str = ", ".join(format_defect_name(d) for d in defects) if defects else "None (Healthy)"
 
             reasons_list = item.get("reasons", [])
+            
+            def_details_list = item.get("defect_details", [])
+            def_lines = []
+            if def_details_list:
+                def_lines.append("<b>Defect Location & Spatial Details:</b><br/>" + "<br/>".join(
+                    f"• {d['description']}" for d in def_details_list if isinstance(d, dict) and "description" in d
+                ))
+            elif defects:
+                def_lines.append("<b>Defect Details:</b><br/>" + "<br/>".join(
+                    f"• {defect_descriptions.get(d.lower(), format_defect_name(d) + ' defect detected.')}"
+                    for d in defects
+                ))
+
+            reason_eval = []
             if reasons_list:
-                reason_str = "; ".join(reasons_list)
+                reason_eval.append("<b>Evaluation:</b><br/>" + "<br/>".join(f"• {r}" for r in reasons_list))
+            elif grade_val == "GRADE_A":
+                reason_eval.append("<b>Evaluation:</b><br/>• Meets strict Grade-A specs (35–70mm size, dry skins, zero defects).")
+            elif grade_val == "GRADE_URS":
+                reason_eval.append("<b>Evaluation:</b><br/>• Qualifies under Relaxed Specifications (Grade URS).")
             else:
-                if grade_val == "GRADE_A":
-                    reason_str = "Meets Grade A standards (35–70mm size, dry skins, zero defects)"
-                elif grade_val == "GRADE_URS":
-                    reason_str = "Qualifies under Relaxed Specifications (Grade URS)"
-                else:
-                    reason_str = "Non-qualifying per specification limits"
+                reason_eval.append("<b>Evaluation:</b><br/>• Non-qualifying: Exceeds allowable NCCF procurement limits.")
+
+            full_reason_xml = "<br/><br/>".join(def_lines + reason_eval)
 
             po_rows.append([
                 Paragraph(o_id, cell_style),
                 Paragraph(dia_str, cell_style),
                 g_p,
                 Paragraph(def_str, cell_style),
-                Paragraph(reason_str, cell_style),
+                Paragraph(full_reason_xml, cell_style),
             ])
 
-        po_table = Table(po_rows, colWidths=[18 * mm, 24 * mm, 30 * mm, 28 * mm, 65 * mm])
+        po_table = Table(po_rows, colWidths=[18 * mm, 22 * mm, 28 * mm, 27 * mm, 70 * mm])
         po_table.setStyle(
             TableStyle([
                 ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1F2937")),
@@ -295,7 +364,6 @@ def generate_report(assessment, out_dir: Path | None = None) -> Path:
         ["Grade A %", f"{grade_a_pct:.1f}%"],
         ["Grade URS %", f"{grade_urs_pct:.1f}%"],
         ["Non-Qualifying %", f"{non_qual_pct:.1f}%"],
-        ["Avg AI Confidence", f"{assessment.avg_confidence * 100:.1f}%"],
         ["Specification", assessment.specification_id or "N/A"],
     ]
     m_table = Table(metrics_rows, colWidths=[75 * mm, 80 * mm])
@@ -315,8 +383,27 @@ def generate_report(assessment, out_dir: Path | None = None) -> Path:
     # --- Reasons ---
     reasons = list(assessment.reasons or [])
     story.append(Paragraph("Grading Summary", styles["Heading3"]))
+    
+    summary_data = []
+    summary_style = ParagraphStyle(
+        "SummaryStyle", parent=styles["Normal"], textColor=colors.HexColor("#1F2937"), leading=14
+    )
     for reason in reasons or ["No details recorded."]:
-        story.append(Paragraph(f"•  {reason}", styles["Normal"]))
+        summary_data.append([Paragraph(f"• {reason}", summary_style)])
+        
+    summary_table = Table(summary_data, colWidths=[155 * mm])
+    summary_table.setStyle(
+        TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F8FAFC")),
+            ("BOX", (0, 0), (-1, -1), 1.5, colors.HexColor("#CBD5E1")),
+            ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+            ("TOPPADDING", (0, 0), (-1, -1), 8),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+            ("LEFTPADDING", (0, 0), (-1, -1), 12),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+        ])
+    )
+    story.append(summary_table)
 
     story += [
         Spacer(1, 8 * mm),

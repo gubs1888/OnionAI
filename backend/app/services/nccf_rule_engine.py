@@ -110,6 +110,10 @@ class OnionFeatures:
     # Raw defect class names detected on this onion
     detected_defects: list[str] = field(default_factory=list)
 
+    # Spatial geometry details (bounding box, location, coverage %)
+    onion_bbox: list[float] | None = None
+    defect_details: list[dict] = field(default_factory=list)
+
 
 @dataclass
 class OnionGradeResult:
@@ -228,6 +232,7 @@ def extract_features(detections: list[dict]) -> list[OnionFeatures]:
             onion_id=i + 1,
             diameter_mm=det.get("estimated_size_mm"),
             confidence=det.get("confidence", 0.0),
+            onion_bbox=det.get("bbox"),
         )
 
     used_defects: set[int] = set()
@@ -244,6 +249,7 @@ def extract_features(detections: list[dict]) -> list[OnionFeatures]:
                 onion_id=next_id,
                 diameter_mm=ddet.get("estimated_size_mm"),
                 confidence=ddet.get("confidence", 0.0),
+                onion_bbox=ddet.get("bbox"),
             )
             _apply_defect(feat, ddet)
             features_map[next_id - 1] = feat
@@ -253,6 +259,66 @@ def extract_features(detections: list[dict]) -> list[OnionFeatures]:
         feat.manual_inspection_required = list(_UNDETECTABLE_FEATURES)
 
     return list(features_map.values())
+
+
+def compute_defect_spatial_details(
+    defect_bbox: list[float], onion_bbox: list[float] | None, class_name: str
+) -> dict:
+    """Compute spatial location and surface coverage for a defect relative to the onion bulb."""
+    location = "Surface"
+    coverage_pct = 10.0
+
+    if onion_bbox and len(onion_bbox) == 4 and len(defect_bbox) == 4:
+        ox1, oy1, ox2, oy2 = onion_bbox
+        dx1, dy1, dx2, dy2 = defect_bbox
+        ow = max(1.0, ox2 - ox1)
+        oh = max(1.0, oy2 - oy1)
+
+        defect_cy = (dy1 + dy2) / 2.0
+        rel_y = (defect_cy - oy1) / oh
+
+        if rel_y < 0.35:
+            location = "Upper Shoulder / Neck region"
+        elif rel_y > 0.65:
+            location = "Lower Base / Root region"
+        else:
+            location = "Mid-Bulb Body region"
+
+        defect_area = max(0.0, dx2 - dx1) * max(0.0, dy2 - dy1)
+        onion_area = ow * oh
+        coverage_pct = min(100.0, round((defect_area / onion_area) * 100.0, 1))
+        if coverage_pct <= 0.0:
+            coverage_pct = 5.0
+
+    name_label_map = {
+        "cut_crack": "Cut / Crack",
+        "damaged": "Mechanical Injury",
+        "rotten": "Rotten",
+        "sprouted": "Sprouted",
+        "smut": "Smut",
+        "discoloured": "Discoloured",
+        "fresh_roots": "Fresh Roots",
+    }
+    label = name_label_map.get(class_name, class_name.replace("_", " ").title())
+
+    desc_map = {
+        "cut_crack": f"Cut / Crack: Outer skin rupture/tearing located at {location} (~{coverage_pct}% bulb area).",
+        "damaged": f"Damaged: Mechanical injury/husk abrasion located at {location} (~{coverage_pct}% bulb area).",
+        "rotten": f"Rotten: Fungal rot/soft decay located at {location} (~{coverage_pct}% bulb area).",
+        "sprouted": f"Sprouted: Emerging green shoot located at {location} (~{coverage_pct}% bulb area).",
+        "smut": f"Smut: Black fungal spore lesion located at {location} (~{coverage_pct}% bulb area).",
+        "discoloured": f"Discoloured: Surface husk staining located at {location} (~{coverage_pct}% bulb area).",
+        "fresh_roots": f"Fresh Roots: Protruding un-trimmed root cluster at {location} (~{coverage_pct}% bulb area).",
+    }
+    desc = desc_map.get(class_name, f"{label}: Defect located at {location} (~{coverage_pct}% bulb area).")
+
+    return {
+        "class_name": class_name,
+        "label": label,
+        "location": location,
+        "coverage_pct": coverage_pct,
+        "description": desc,
+    }
 
 
 def _find_best_overlap(
@@ -296,6 +362,10 @@ def _apply_defect(features: OnionFeatures, det: dict) -> None:
     name = det["class_name"]
     features.detected_defects.append(name)
 
+    bbox = det.get("bbox", [])
+    spatial_info = compute_defect_spatial_details(bbox, features.onion_bbox, name)
+    features.defect_details.append(spatial_info)
+
     if name == "sprouted":
         features.sprouted = True
     elif name == "rotten":
@@ -303,9 +373,9 @@ def _apply_defect(features: OnionFeatures, det: dict) -> None:
     elif name == "cut_crack":
         features.cut_crack = True
     elif name == "smut":
-        features.smut_percentage = max(features.smut_percentage, 15.0)
+        features.smut_percentage = max(features.smut_percentage, spatial_info["coverage_pct"])
     elif name == "discoloured":
-        features.staining_percentage = max(features.staining_percentage, 20.0)
+        features.staining_percentage = max(features.staining_percentage, spatial_info["coverage_pct"])
     elif name == "fresh_roots":
         features.fresh_roots = True
     elif name == "damaged":
@@ -591,6 +661,7 @@ def grade_batch(
             "grade": onion_result.grade,
             "reasons": onion_result.disqualifying_reasons[:5],
             "defects": feat.detected_defects,
+            "defect_details": feat.defect_details,
             "diameter_mm": feat.diameter_mm,
             "confidence": feat.confidence,
         })

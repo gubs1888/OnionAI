@@ -1,37 +1,62 @@
-/**
- * GradeBadge — big colored circle with the MVP grade letter.
- * Colors: A green · B blue · C orange · D red.
- */
-
+import React from "react";
 import { StyleSheet, Text, View } from "react-native";
-
+import { colors, radius, typography } from "../theme";
 import { Grade } from "../types/assessment";
 
-const COLORS: Record<Grade, { bg: string; label: string }> = {
-  A: { bg: "#16A34A", label: "Excellent" },
-  B: { bg: "#2563EB", label: "Good" },
-  C: { bg: "#D97706", label: "Fair" },
-  D: { bg: "#DC2626", label: "Poor" },
+const GRADE_LABELS: Record<Grade, { label: string; desc: string }> = {
+  A: { label: "Grade A", desc: "Premium Quality" },
+  B: { label: "Grade B", desc: "Standard Quality" },
+  C: { label: "Grade C", desc: "Fair / URS Specs" },
+  D: { label: "Grade D", desc: "Below Standard" },
 };
 
 export default function GradeBadge({ grade }: { grade: Grade }) {
-  const color = COLORS[grade] ?? COLORS.D;
+  const gradeColor = colors.grade[grade] ?? colors.grade.D;
+  const info = GRADE_LABELS[grade] ?? GRADE_LABELS.D;
+
   return (
-    <View style={[styles.circle, { backgroundColor: color.bg }]}>
+    <View style={[styles.badge, { backgroundColor: gradeColor }]}>
       <Text style={styles.letter}>{grade}</Text>
-      <Text style={styles.sub}>{color.label}</Text>
+      <View style={styles.textCol}>
+        <Text style={styles.label}>{info.label}</Text>
+        <Text style={styles.desc}>{info.desc}</Text>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  circle: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+  badge: {
+    borderRadius: radius.M,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: "row",
     alignItems: "center",
+    alignSelf: "flex-start",
+    shadowColor: colors.ink,
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  letter: {
+    fontSize: 32,
+    fontWeight: "900",
+    color: "#FFFFFF",
+    lineHeight: 34,
+    marginRight: 12,
+  },
+  textCol: {
     justifyContent: "center",
   },
-  letter: { color: "#fff", fontSize: 40, fontWeight: "900", lineHeight: 44 },
-  sub: { color: "rgba(255,255,255,0.9)", fontSize: 10, fontWeight: "700" },
+  label: {
+    ...typography.headline,
+    color: "#FFFFFF",
+    fontWeight: "800",
+  },
+  desc: {
+    ...typography.caption,
+    color: "rgba(255, 255, 255, 0.85)",
+    fontSize: 11,
+  },
 });

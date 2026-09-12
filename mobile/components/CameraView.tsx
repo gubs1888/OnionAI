@@ -1,14 +1,10 @@
-/**
- * CameraView — expo-camera wrapper with permission handling.
- *
- * SDK 53 API: `CameraView` + `useCameraPermissions`.
- * Falls back to a clearly-marked placeholder when camera is unavailable
- * (web preview / denied permission) — the gallery path still works.
- */
-
-import { useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useRef, useState } from "react";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { CameraView as ExpoCameraView, useCameraPermissions } from "expo-camera";
+import * as ImagePicker from "expo-image-picker";
+import { colors, radius, typography } from "../theme";
+import Button from "./ui/Button";
+import Card from "./ui/Card";
 
 type Props = {
   onCaptured: (uri: string) => void;
@@ -18,25 +14,85 @@ export default function CameraView({ onCaptured }: Props) {
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<ExpoCameraView>(null);
   const [busy, setBusy] = useState(false);
+  const [requesting, setRequesting] = useState(false);
+  const [permError, setPermError] = useState<string | null>(null);
+
+  const handleGrantPermission = async () => {
+    setRequesting(true);
+    setPermError(null);
+    try {
+      if (Platform.OS === "web" && typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          // Stop initial test tracks so ExpoCameraView can take over cleanly
+          stream.getTracks().forEach((t) => t.stop());
+        } catch (webErr) {
+          console.warn("Web getUserMedia permission prompt error:", webErr);
+        }
+      }
+      const res = await requestPermission();
+      if (!res.granted) {
+        setPermError("Camera access denied or blocked by browser settings.");
+      }
+    } catch (err) {
+      setPermError("Could not request camera access. Please check browser site settings.");
+    } finally {
+      setRequesting(false);
+    }
+  };
+
+  const pickFromGalleryFallback = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        quality: 0.7,
+      });
+      if (!result.canceled && result.assets[0]) {
+        onCaptured(result.assets[0].uri);
+      }
+    } catch (err) {
+      setPermError("Failed to select image from gallery.");
+    }
+  };
 
   if (!permission) {
-    return <View style={styles.placeholder} />;
+    return <View style={styles.darkBg} />;
   }
 
   if (!permission.granted) {
     return (
-      <View style={[styles.placeholder, styles.placeholderContent]}>
-        <Text style={styles.placeholderTitle}>Camera permission needed</Text>
-        <Text style={styles.placeholderText}>
-          Used to photograph onion batches. You can also pick an image from the
-          gallery below.
-        </Text>
-        <Pressable style={styles.button} onPress={requestPermission}>
-          <Text style={styles.buttonText}>Grant camera access</Text>
-        </Pressable>
-        <View style={styles.viewfinderMock}>
-          <Text style={styles.mockText}>[ CAMERA VIEWFINDER PLACEHOLDER ]</Text>
-        </View>
+      <View style={[styles.darkBg, styles.permissionContent]}>
+        <Card style={styles.permissionCard}>
+          <Text style={styles.permIcon}>📷</Text>
+          <Text style={styles.permTitle}>Camera Access Required</Text>
+          <Text style={styles.permText}>
+            OnionLens needs camera access to capture and grade onion lots in real-time.
+          </Text>
+
+          {permError ? (
+            <Text style={styles.permErrorText}>
+              ⚠️ {permError}{"\n"}
+              <Text style={styles.permSubHint}>
+                If using desktop browser, click the 🔒 lock icon in the address bar to allow camera access, or upload an image directly.
+              </Text>
+            </Text>
+          ) : null}
+
+          <Button
+            label="Grant Camera Access"
+            onPress={handleGrantPermission}
+            variant="primary"
+            loading={requesting}
+            style={{ marginTop: 16, width: "100%" }}
+          />
+
+          <Button
+            label="Pick Photo from Gallery Instead"
+            onPress={pickFromGalleryFallback}
+            variant="secondary"
+            style={{ marginTop: 10, width: "100%" }}
+          />
+        </Card>
       </View>
     );
   }
@@ -55,58 +111,173 @@ export default function CameraView({ onCaptured }: Props) {
   return (
     <View style={styles.container}>
       <ExpoCameraView ref={cameraRef} style={styles.camera} facing="back" />
-      {/* Viewfinder overlay — TODO(TEAM C): framing rectangle + guides */}
-      <View style={styles.viewfinder} />
-      <Pressable style={({ pressed }) => [styles.shutter, pressed && { opacity: 0.8 }]} onPress={capture}>
-        <Text style={styles.shutterText}>{busy ? "…" : "Capture"}</Text>
-      </Pressable>
+      
+      {/* Framing Reticle Overlay */}
+      <View style={styles.reticleContainer} pointerEvents="none">
+        <View style={styles.reticleBox}>
+          {/* Corner brackets */}
+          <View style={[styles.bracket, styles.topLeft]} />
+          <View style={[styles.bracket, styles.topRight]} />
+          <View style={[styles.bracket, styles.bottomLeft]} />
+          <View style={[styles.bracket, styles.bottomRight]} />
+        </View>
+        <Text style={styles.guideText}>
+          Fill the frame with the onion lot · avoid shadows
+        </Text>
+      </View>
+
+      {/* Shutter Button */}
+      <View style={styles.controlsRow}>
+        <Pressable
+          style={({ pressed }) => [styles.shutterRing, pressed && styles.shutterPressed]}
+          onPress={capture}
+          disabled={busy}
+        >
+          <View style={styles.shutterInner} />
+        </Pressable>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#000" },
-  camera: { flex: 1 },
-  viewfinder: {
-    position: "absolute",
-    top: "12%",
-    left: "10%",
-    right: "10%",
-    height: "45%",
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.65)",
-    borderRadius: 16,
+  container: {
+    flex: 1,
+    backgroundColor: "#101619",
+    position: "relative",
   },
-  shutter: {
-    position: "absolute",
-    bottom: 28,
-    alignSelf: "center",
-    backgroundColor: "#16A34A",
-    width: 130,
-    paddingVertical: 16,
-    borderRadius: 999,
+  camera: {
+    flex: 1,
+  },
+  darkBg: {
+    flex: 1,
+    backgroundColor: "#101619",
+  },
+  permissionContent: {
     alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
   },
-  shutterText: { color: "#fff", fontWeight: "800", fontSize: 16 },
-  placeholder: { flex: 1, backgroundColor: "#1F2937" },
-  placeholderContent: { alignItems: "center", justifyContent: "center", padding: 24 },
-  placeholderTitle: { color: "#F9FAFB", fontSize: 16, fontWeight: "700" },
-  placeholderText: { color: "#9CA3AF", fontSize: 12, textAlign: "center", marginTop: 8 },
-  button: {
-    backgroundColor: "#16A34A",
-    borderRadius: 10,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    marginTop: 16,
+  permissionCard: {
+    alignItems: "center",
+    maxWidth: 380,
+    width: "100%",
+    padding: 20,
   },
-  buttonText: { color: "#fff", fontWeight: "700" },
-  viewfinderMock: {
-    marginTop: 24,
-    borderWidth: 1,
-    borderColor: "#374151",
-    borderRadius: 12,
+  permIcon: {
+    fontSize: 40,
+    marginBottom: 8,
+  },
+  permTitle: {
+    ...typography.title2,
+    color: colors.ink,
+    textAlign: "center",
+  },
+  permText: {
+    ...typography.caption,
+    color: colors.inkMuted,
+    textAlign: "center",
+    marginTop: 6,
+    lineHeight: 18,
+  },
+  permErrorText: {
+    ...typography.caption,
+    color: colors.red,
+    textAlign: "center",
+    marginTop: 10,
+    fontWeight: "600",
+  },
+  permSubHint: {
+    fontWeight: "400",
+    color: colors.inkMuted,
+    fontSize: 11,
+  },
+  reticleContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 120,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  reticleBox: {
+    width: "80%",
+    height: "55%",
+    maxWidth: 340,
+    maxHeight: 340,
+    position: "relative",
+  },
+  bracket: {
+    position: "absolute",
+    width: 24,
+    height: 24,
+    borderColor: "#FFFFFF",
+  },
+  topLeft: {
+    top: 0,
+    left: 0,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+    borderTopLeftRadius: 10,
+  },
+  topRight: {
+    top: 0,
+    right: 0,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+    borderTopRightRadius: 10,
+  },
+  bottomLeft: {
+    bottom: 0,
+    left: 0,
+    borderBottomWidth: 3,
+    borderLeftWidth: 3,
+    borderBottomLeftRadius: 10,
+  },
+  bottomRight: {
+    bottom: 0,
+    right: 0,
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
+    borderBottomRightRadius: 10,
+  },
+  guideText: {
+    ...typography.caption,
+    color: "#FFFFFF",
+    backgroundColor: "rgba(16, 22, 25, 0.75)",
     paddingHorizontal: 12,
-    paddingVertical: 40,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    marginTop: 16,
+    overflow: "hidden",
   },
-  mockText: { color: "#6B7280", fontSize: 11, textAlign: "center" },
+  controlsRow: {
+    position: "absolute",
+    bottom: 24,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  shutterRing: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 4,
+    borderColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+  },
+  shutterPressed: {
+    transform: [{ scale: 0.92 }],
+    backgroundColor: "rgba(255, 255, 255, 0.4)",
+  },
+  shutterInner: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: colors.accent,
+  },
 });

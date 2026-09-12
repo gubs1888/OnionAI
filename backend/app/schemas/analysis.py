@@ -56,6 +56,7 @@ ALL_CLASS_NAMES = (
 class DetectionOut(BaseModel):
     """One detected onion instance (ML -> Backend -> Mobile contract)."""
 
+    id: int | None = Field(default=None, description="Detection ID from database")
     class_name: str = Field(
         examples=list(ALL_CLASS_NAMES),
     )
@@ -65,6 +66,7 @@ class DetectionOut(BaseModel):
     )
     confidence: float = Field(ge=0.0, le=1.0)
     bbox: list[float] = Field(description="[x1, y1, x2, y2] in pixels")
+    diameter_px: float | None = Field(default=None, description="Raw physical diameter in pixels")
     estimated_size_mm: float | None = Field(
         default=None, description="Estimated bulb diameter in mm (demo estimator for now)"
     )

@@ -1,14 +1,11 @@
-/**
- * NEW BATCH — minimal creation form.
- * Creates via POST /api/batches (MOCK fallback keeps the flow alive offline),
- * then moves to CAMERA.
- */
-
-import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import React, { useState } from "react";
+import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 
+import Button from "../components/ui/Button";
+import Card from "../components/ui/Card";
 import { createBatch } from "../services/api";
+import { colors, layout, radius, typography } from "../theme";
 import { Batch } from "../types/assessment";
 
 export default function NewBatchScreen() {
@@ -19,6 +16,10 @@ export default function NewBatchScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [focusedField, setFocusedField] = useState<string | null>(null);
+
+  const isFormValid = name.trim().length > 0;
+
   const submit = async () => {
     if (!name.trim()) {
       setError("Batch name is required.");
@@ -26,84 +27,199 @@ export default function NewBatchScreen() {
     }
     setError(null);
     setSubmitting(true);
-    const batch: Batch = await createBatch({
-      name: name.trim(),
-      variety: variety.trim() || undefined,
-      source: source.trim() || undefined,
-    });
-    setSubmitting(false);
-    router.replace({
-      pathname: "/camera",
-      params: { batchCode: batch.batch_code, batchName: batch.name },
-    });
+    try {
+      const batch: Batch = await createBatch({
+        name: name.trim(),
+        variety: variety.trim() || undefined,
+        source: source.trim() || undefined,
+      });
+      router.replace({
+        pathname: "/camera",
+        params: { batchCode: batch.batch_code, batchName: batch.name },
+      });
+    } catch (err) {
+      setError((err as Error).message ?? "Could not create batch");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Text style={styles.label}>Batch name *</Text>
-      <TextInput
-        style={styles.input}
-        value={name}
-        onChangeText={setName}
-        placeholder="e.g. Lot A — Nashik farm"
-        placeholderTextColor="#9CA3AF"
-      />
-      <Text style={styles.label}>Variety</Text>
-      <TextInput
-        style={styles.input}
-        value={variety}
-        onChangeText={setVariety}
-        placeholder="e.g. Nashik Red"
-        placeholderTextColor="#9CA3AF"
-      />
-      <Text style={styles.label}>Source / mandi / farm</Text>
-      <TextInput
-        style={styles.input}
-        value={source}
-        onChangeText={setSource}
-        placeholder="e.g. Lasalgaon Mandi"
-        placeholderTextColor="#9CA3AF"
-      />
+      <View style={styles.webWrapper}>
+        {/* Screen Header */}
+        <View style={styles.headerBlock}>
+          <Text style={styles.title}>New grading batch</Text>
+          <Text style={styles.subtitle}>
+            Name your lot — you'll capture or select photos in the next step.
+          </Text>
+        </View>
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+        {/* Elevated Form Container */}
+        <Card style={styles.formCard}>
+          {/* Name Field */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>
+              Batch name <Text style={styles.required}>*</Text>
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                focusedField === "name" && styles.inputFocused,
+                error && !name.trim() && styles.inputError,
+              ]}
+              value={name}
+              onChangeText={(val) => {
+                setName(val);
+                if (error) setError(null);
+              }}
+              onFocus={() => setFocusedField("name")}
+              onBlur={() => setFocusedField(null)}
+              placeholder="e.g. Lot A — Nashik Red harvest"
+              placeholderTextColor={colors.inkMuted}
+            />
+            <Text style={styles.fieldHelper}>
+              Identify the farm lot or warehouse section
+            </Text>
+          </View>
 
-      <Pressable
-        style={({ pressed }) => [styles.button, pressed && { opacity: 0.85 }]}
-        onPress={submit}
-        disabled={submitting}
-      >
-        <Text style={styles.buttonText}>
-          {submitting ? "Creating…" : "Create batch → Camera"}
+          {/* Variety Field */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Onion Variety</Text>
+            <TextInput
+              style={[
+                styles.input,
+                focusedField === "variety" && styles.inputFocused,
+              ]}
+              value={variety}
+              onChangeText={setVariety}
+              onFocus={() => setFocusedField("variety")}
+              onBlur={() => setFocusedField(null)}
+              placeholder="e.g. Nashik Red, Agrifound Dark Red"
+              placeholderTextColor={colors.inkMuted}
+            />
+            <Text style={styles.fieldHelper}>Optional cultivars classification</Text>
+          </View>
+
+          {/* Source / Mandi Field */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Source / Mandi / Farm</Text>
+            <TextInput
+              style={[
+                styles.input,
+                focusedField === "source" && styles.inputFocused,
+              ]}
+              value={source}
+              onChangeText={setSource}
+              onFocus={() => setFocusedField("source")}
+              onBlur={() => setFocusedField(null)}
+              placeholder="e.g. Lasalgaon Mandi, Procurement Center 4"
+              placeholderTextColor={colors.inkMuted}
+            />
+            <Text style={styles.fieldHelper}>Origin location for report records</Text>
+          </View>
+
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        </Card>
+
+        {/* Submit Action */}
+        <Button
+          label="Continue to camera →"
+          onPress={submit}
+          variant="primary"
+          size="lg"
+          disabled={!isFormValid}
+          loading={submitting}
+          style={{ marginTop: 24 }}
+        />
+
+        <Text style={styles.footerNote}>
+          Photos stay on your device until you analyze.
         </Text>
-      </Pressable>
-      <Text style={styles.note}>
-        Placeholder form — extra fields (count, photos, GPS) come later.
-      </Text>
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  content: { padding: 20 },
-  label: { fontSize: 13, fontWeight: "600", color: "#374151", marginTop: 14, marginBottom: 6 },
+  screen: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  content: {
+    padding: 16,
+    paddingBottom: 40,
+    alignItems: "center",
+  },
+  webWrapper: {
+    width: "100%",
+    maxWidth: layout.maxWebWidth,
+  },
+  headerBlock: {
+    marginVertical: 16,
+  },
+  title: {
+    ...typography.title1,
+    color: colors.ink,
+  },
+  subtitle: {
+    ...typography.caption,
+    color: colors.inkMuted,
+    marginTop: 4,
+    fontSize: 13,
+  },
+  formCard: {
+    padding: 20,
+    marginTop: 8,
+  },
+  fieldGroup: {
+    marginBottom: 18,
+  },
+  label: {
+    ...typography.headline,
+    color: colors.ink,
+    fontSize: 14,
+    marginBottom: 6,
+  },
+  required: {
+    color: colors.red,
+  },
   input: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    height: 52,
+    backgroundColor: colors.surface,
+    borderRadius: radius.S,
+    paddingHorizontal: 16,
     fontSize: 15,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: colors.line,
+    color: colors.ink,
   },
-  error: { color: "#DC2626", marginTop: 12, fontSize: 13 },
-  button: {
-    backgroundColor: "#16A34A",
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: "center",
-    marginTop: 24,
+  inputFocused: {
+    borderColor: colors.accent,
+    borderWidth: 2,
+    backgroundColor: "rgba(16, 185, 129, 0.05)",
   },
-  buttonText: { color: "#fff", fontSize: 16, fontWeight: "700" },
-  note: { marginTop: 16, fontSize: 11, color: "#9CA3AF", textAlign: "center" },
+  inputError: {
+    borderColor: colors.red,
+    borderWidth: 1.5,
+  },
+  fieldHelper: {
+    ...typography.caption,
+    color: colors.inkMuted,
+    marginTop: 4,
+    fontSize: 11,
+  },
+  errorText: {
+    ...typography.caption,
+    color: colors.red,
+    fontWeight: "600",
+    marginTop: 8,
+  },
+  footerNote: {
+    ...typography.caption,
+    color: colors.inkMuted,
+    textAlign: "center",
+    marginTop: 16,
+    fontSize: 12,
+  },
 });

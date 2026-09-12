@@ -8,6 +8,8 @@
  *   logged — we NEVER present them as real AI output.
  */
 
+import { Platform } from "react-native";
+import * as FileSystem from "expo-file-system/legacy";
 import {
   AnalysisResponse,
   Assessment,
@@ -193,24 +195,52 @@ export async function clearBatches(): Promise<void> {
 /**
  * POST /api/analyze — multipart upload.
  * Falls back to MOCK only when the backend is unreachable (NetworkError).
- * Server errors (422 NOTHING_DETECTED, etc.) are re-thrown to the caller.
  */
-export async function analyzeImage(imageUri: string, batchCode?: string): Promise<AnalysisResponse> {
+export async function analyzeImage(imageUri: string, batchCode?: string, distanceCm?: number): Promise<AnalysisResponse> {
   try {
-    const form = new FormData();
-    if (typeof window !== "undefined" && typeof window.fetch === "function" && (imageUri.startsWith("data:") || imageUri.startsWith("blob:"))) {
-      const blob = await fetch(imageUri).then((r) => r.blob());
+    if (Platform.OS === "web") {
+      const form = new FormData();
+      const resp = await fetch(imageUri);
+      const blob = await resp.blob();
       form.append("image", blob, "onions.jpg");
+      if (batchCode) form.append("batch_id", batchCode);
+      if (distanceCm) form.append("distance_cm", distanceCm.toString());
+      
+      const result = await request<AnalysisResponse>("/api/analyze", {
+        method: "POST",
+        body: form,
+      });
+      lastAssessment = result;
+      return result;
     } else {
-      form.append("image", { uri: imageUri, name: "onions.jpg", type: "image/jpeg" } as unknown as Blob);
+      // React Native mobile MUST use expo-file-system for local file uploads
+      const formParams: Record<string, string> = {};
+      if (batchCode) formParams["batch_id"] = batchCode;
+      if (distanceCm) formParams["distance_cm"] = distanceCm.toString();
+
+      const fullUrl = `${API_BASE_URL}/api/analyze`;
+
+      const uploadResult = await FileSystem.uploadAsync(fullUrl, imageUri, {
+        fieldName: "image",
+        httpMethod: "POST",
+        uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+        parameters: formParams,
+      });
+
+      if (uploadResult.status >= 400) {
+        let body: any = null;
+        try {
+          body = JSON.parse(uploadResult.body);
+        } catch {}
+        const code = body?.detail?.code ?? body?.error?.code ?? "UNKNOWN";
+        const message = body?.detail?.message ?? body?.error?.message ?? `HTTP ${uploadResult.status}`;
+        throw new ApiError(uploadResult.status, code, message);
+      }
+
+      const result = JSON.parse(uploadResult.body) as AnalysisResponse;
+      lastAssessment = result;
+      return result;
     }
-    if (batchCode) form.append("batch_id", batchCode);
-    const result = await request<AnalysisResponse>("/api/analyze", {
-      method: "POST",
-      body: form,
-    });
-    lastAssessment = result;
-    return result;
   } catch (err) {
     // Server returned a real error (e.g. 422 NOTHING_DETECTED) — propagate it
     if (err instanceof ApiError) {

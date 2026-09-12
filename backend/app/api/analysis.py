@@ -60,12 +60,14 @@ MAX_UPLOAD_BYTES = 15 * 1024 * 1024  # 15 MB
 def analyze_image_endpoint(
     image: UploadFile = File(..., description="Batch photo (jpg/jpeg/png)"),
     batch_id: str | None = Form(default=None, description="Batch code or id (optional)"),
+    distance_cm: float | None = Form(default=None, description="Camera distance in cm"),
     db: Session = Depends(get_db),
     current_user: User | None = Depends(get_current_user_optional),
 ) -> AnalyzeResponse:
     # 1. Validate upload -----------------------------------------------------
     original_name = image.filename or "upload.jpg"
     ext = Path(original_name).suffix.lower()
+    print("ext", ext)
     if not ext or ext == ".":
         ext = ".jpg"
     if ext not in ALLOWED_EXTENSIONS:
@@ -103,6 +105,33 @@ def analyze_image_endpoint(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail={"code": "FILE_TOO_LARGE", "message": "Max upload size is 15 MB."},
             )
+
+    # Auto-decode base64 / data URL text payload if sent by mobile/web client
+    try:
+        import base64
+        with stored_path.open("rb") as f:
+            header = f.read(256)
+        if (
+            header.startswith(b"data:image/")
+            or b"base64," in header
+            or (
+                not header.startswith(b"\xff\xd8")
+                and not header.startswith(b"\x89PNG")
+                and not header.startswith(b"RIFF")
+                and not header.startswith(b"GIF")
+            )
+        ):
+            raw_text = stored_path.read_text(encoding="utf-8", errors="ignore").strip()
+            if "base64," in raw_text:
+                raw_text = raw_text.split("base64,")[1]
+            try:
+                decoded_bytes = base64.b64decode(raw_text)
+                if len(decoded_bytes) > 0:
+                    stored_path.write_bytes(decoded_bytes)
+            except Exception:
+                pass
+    except Exception:
+        pass
 
     # Store the path relative to the backend root when possible (nice for
     # logs/portability); fall back to the absolute path for external dirs.
@@ -154,7 +183,14 @@ def analyze_image_endpoint(
             detail={"code": "CONFIG_ERROR", "message": str(exc)},
         ) from exc
 
-    detections = measurement.estimate_sizes(detections, config=config)
+    image_width = result.get("image_width", 0)
+    detections = measurement.estimate_sizes(
+        detections, 
+        config=config, 
+        distance_cm=distance_cm, 
+        image_width=image_width,
+        image_path=str(stored_path)
+    )
 
     # --- NCCF Rule Engine (primary grading path) ---
     nccf_result = grading.grade_batch_nccf(detections, config=config)
@@ -181,6 +217,7 @@ def analyze_image_endpoint(
                 class_name=det["class_name"],
                 confidence=float(det["confidence"]),
                 bbox=det["bbox"],
+                diameter_px=det.get("diameter_px"),
                 estimated_size_mm=det.get("estimated_size_mm"),
             )
         )

@@ -1,50 +1,99 @@
-/**
- * ANALYZING — uploads the image (POST /api/analyze) and auto-advances to
- * RESULTS. Backend offline? The api client's MOCK fallback keeps the flow
- * alive and the result is flagged is_demo.
- * Server errors (e.g. NOTHING_DETECTED) are shown to the user with a
- * go-back option.
- */
-
-import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { Animated, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
+import Banner from "../components/ui/Banner";
+import Button from "../components/ui/Button";
+import Card from "../components/ui/Card";
+import StepDots from "../components/ui/StepDots";
 import { analyzeImage, ApiError } from "../services/api";
 import { getCapturedImageUri } from "../services/imageStore";
+import { colors, layout, radius, shadows, typography } from "../theme";
+
+const STEPS = ["Upload", "Detect", "Measure", "Grade"];
+
+const ROTATING_HINTS = [
+  "Uploading image securely…",
+  "Detecting every bulb in frame…",
+  "Measuring diameter and defects…",
+  "Applying NCCF grading rules…",
+];
 
 export default function AnalyzingScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ uri?: string; batchCode?: string }>();
+  const params = useLocalSearchParams<{ uri?: string; batchCode?: string; distanceCm?: string }>();
   const started = useRef(false);
-  const [note, setNote] = useState("Uploading image…");
+
+  const [currentStep, setCurrentStep] = useState(0);
+  const [hintIndex, setHintIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  // Pulse animation for stage icon
   useEffect(() => {
-    if (started.current) return; // guard against double-invoke
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.15,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [pulseAnim]);
+
+  // Step advancement timer
+  useEffect(() => {
+    if (error) return;
+    const stepTimer = setInterval(() => {
+      setCurrentStep((prev) => (prev < 2 ? prev + 1 : prev));
+      setHintIndex((prev) => (prev + 1) % ROTATING_HINTS.length);
+    }, 900);
+    return () => clearInterval(stepTimer);
+  }, [error]);
+
+  // Main pipeline trigger
+  useEffect(() => {
+    if (started.current) return;
     started.current = true;
 
     const run = async () => {
       const pUri = Array.isArray(params.uri) ? params.uri[0] : params.uri;
       const paramUri = pUri || "";
-      const uri = paramUri ? decodeURIComponent(paramUri) : (getCapturedImageUri() ?? "");
-      const pBatchCode = Array.isArray(params.batchCode) ? params.batchCode[0] : params.batchCode;
+      const uri = paramUri
+        ? decodeURIComponent(paramUri)
+        : getCapturedImageUri() ?? "";
+      const pBatchCode = Array.isArray(params.batchCode)
+        ? params.batchCode[0]
+        : params.batchCode;
       const batchCode = pBatchCode || undefined;
+      
+      const pDist = Array.isArray(params.distanceCm) ? params.distanceCm[0] : params.distanceCm;
+      const distanceCm = pDist ? parseFloat(pDist) : undefined;
+
       if (!uri) {
-        setNote("No image received — going back.");
-        setTimeout(() => router.back(), 1200);
+        setError("No image received — returning to camera.");
+        setTimeout(() => router.back(), 1500);
         return;
       }
+
       try {
-        setNote("Running quality pipeline…");
-        const result = await analyzeImage(uri, batchCode);
+        const result = await analyzeImage(uri, batchCode, distanceCm);
+        setCurrentStep(3); // Grade step complete
         router.replace({
           pathname: "/results",
           params: { batchCode: result.batch_id },
         });
       } catch (err) {
         if (err instanceof ApiError) {
-          // Server returned a real error — show it to the user
           const friendly =
             err.code === "NOTHING_DETECTED"
               ? "No onions detected in the image.\nTry a clearer photo with better lighting."
@@ -53,57 +102,119 @@ export default function AnalyzingScreen() {
               : err.message;
           setError(friendly);
         } else {
-          setError("Something went wrong. Please try again.");
+          setError((err as Error).message ?? "Pipeline execution failed. Try again.");
         }
       }
     };
+
     run();
   }, [params, router]);
 
-  if (error) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.errorIcon}>⚠️</Text>
-        <Text style={styles.errorTitle}>Analysis Failed</Text>
-        <Text style={styles.errorMsg}>{error}</Text>
-        <Pressable
-          style={styles.retryBtn}
-          onPress={() => router.back()}
-        >
-          <Text style={styles.retryText}>← Go Back & Try Again</Text>
-        </Pressable>
-      </View>
-    );
-  }
-
   return (
-    <View style={styles.center}>
-      <ActivityIndicator size="large" color="#16A34A" />
-      <Text style={styles.title}>Analyzing onions…</Text>
-      <Text style={styles.note}>{note}</Text>
-    </View>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.centerContainer}>
+      <View style={styles.webWrapper}>
+        {error ? (
+          <Card style={styles.errorCard}>
+            <Banner variant="error" message="Analysis Failed" />
+            <Text style={styles.errorMsg}>{error}</Text>
+            <Button
+              label="← Go Back & Try Again"
+              onPress={() => router.back()}
+              variant="primary"
+              size="lg"
+              style={{ marginTop: 16 }}
+            />
+          </Card>
+        ) : (
+          <Card style={styles.stageCard}>
+            {/* Animated Pulsing Icon Stage */}
+            <View style={styles.stageCircle}>
+              <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+                <Text style={styles.onionIcon}>🧅</Text>
+              </Animated.View>
+            </View>
+
+            <Text style={styles.stageTitle}>Analyzing Onion Quality</Text>
+            <Text style={styles.rotatingHint}>{ROTATING_HINTS[hintIndex]}</Text>
+
+            {/* StepDots Progress Bar */}
+            <View style={styles.stepsContainer}>
+              <StepDots steps={STEPS} currentStep={currentStep} />
+            </View>
+
+            <Text style={styles.caption}>Usually completes under 5 seconds</Text>
+          </Card>
+        )}
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32 },
-  title: { fontSize: 20, fontWeight: "700", color: "#111827", marginTop: 20 },
-  note: { fontSize: 14, color: "#6B7280", marginTop: 8 },
-  errorIcon: { fontSize: 48, marginBottom: 12 },
-  errorTitle: { fontSize: 22, fontWeight: "700", color: "#DC2626", marginBottom: 8 },
-  errorMsg: {
-    fontSize: 15,
-    color: "#6B7280",
+  screen: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  centerContainer: {
+    flexGrow: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+  },
+  webWrapper: {
+    width: "100%",
+    maxWidth: layout.maxWebWidth,
+  },
+  stageCard: {
+    alignItems: "center",
+    paddingVertical: 32,
+    paddingHorizontal: 20,
+
+  },
+  stageCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primarySoft,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+  },
+  onionIcon: {
+    fontSize: 50,
+  },
+  stageTitle: {
+    ...typography.title2,
+    color: colors.ink,
     textAlign: "center",
-    lineHeight: 22,
+  },
+  rotatingHint: {
+    ...typography.headline,
+    color: colors.primary,
+    textAlign: "center",
+    marginTop: 6,
     marginBottom: 24,
-    paddingHorizontal: 16,
+    height: 24,
   },
-  retryBtn: {
-    backgroundColor: "#16A34A",
-    paddingVertical: 12,
-    paddingHorizontal: 28,
-    borderRadius: 10,
+  stepsContainer: {
+    width: "100%",
+    marginVertical: 16,
   },
-  retryText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  caption: {
+    ...typography.caption,
+    color: colors.inkMuted,
+    marginTop: 16,
+    textAlign: "center",
+  },
+  errorCard: {
+    padding: 20,
+    alignItems: "center",
+  },
+  errorMsg: {
+    ...typography.body,
+    color: colors.ink,
+    textAlign: "center",
+    marginVertical: 12,
+    lineHeight: 22,
+  },
 });

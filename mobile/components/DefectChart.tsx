@@ -1,9 +1,7 @@
-/**
- * DefectChart — dependency-free horizontal bar chart (pure Views).
- * Intentionally no chart library: works everywhere, zero install weight.
- */
-
+import React from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { colors, radius, typography } from "../theme";
+import MeterBar from "./ui/MeterBar";
 
 type Counts = {
   healthy: number;
@@ -14,62 +12,95 @@ type Counts = {
 };
 
 const CATEGORIES: Array<{ key: keyof Counts; label: string; color: string }> = [
-  { key: "healthy", label: "Healthy", color: "#16A34A" },
-  { key: "damaged", label: "Damaged", color: "#D97706" },
-  { key: "rotten", label: "Rotten", color: "#DC2626" },
-  { key: "sprouted", label: "Sprouted", color: "#7C3AED" },
-  { key: "undersized", label: "Size Out of Spec (<35mm / >70mm)", color: "#2563EB" },
+  { key: "healthy", label: "Healthy", color: colors.category.healthy },
+  { key: "damaged", label: "Damaged", color: colors.category.damaged },
+  { key: "rotten", label: "Rotten", color: colors.category.rotten },
+  { key: "sprouted", label: "Sprouted", color: colors.category.sprouted },
+  { key: "undersized", label: "Size Out of Spec (<35mm / >70mm)", color: colors.category.undersized },
 ];
 
 export default function DefectChart({ counts }: { counts: Counts }) {
-  const total = CATEGORIES.reduce((sum, c) => sum + Math.max(0, counts[c.key]), 0);
+  const total = CATEGORIES.reduce(
+    (sum, c) => sum + Math.max(0, counts[c.key] || 0),
+    0
+  );
 
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>Composition</Text>
-      {CATEGORIES.map(({ key, label, color }) => {
-        const value = Math.max(0, counts[key]);
-        const pct = total > 0 ? (value / total) * 100 : 0;
-        return (
-          <View key={key} style={styles.row}>
-            <Text style={styles.label}>
-              {label} ({value})
-            </Text>
-            <View style={styles.track}>
-              <View style={[styles.bar, { width: `${pct}%`, backgroundColor: color }]} />
-            </View>
-            <Text style={styles.pct}>{pct.toFixed(0)}%</Text>
-          </View>
-        );
-      })}
-      {total === 0 ? <Text style={styles.empty}>No data.</Text> : null}
+      <Text style={styles.title}>Composition Breakdown</Text>
+
+      {/* Multi-segment stacked bar preview */}
+      {total > 0 && (
+        <View style={styles.stackedTrack}>
+          {CATEGORIES.map(({ key, color }) => {
+            const val = Math.max(0, counts[key] || 0);
+            const pct = (val / total) * 100;
+            if (pct <= 0) return null;
+            return (
+              <View
+                key={key}
+                style={{
+                  width: `${pct}%`,
+                  height: 12,
+                  backgroundColor: color,
+                }}
+              />
+            );
+          })}
+        </View>
+      )}
+
+      {/* Individual category bars */}
+      <View style={styles.barsList}>
+        {CATEGORIES.map(({ key, label, color }) => {
+          const value = Math.max(0, counts[key] || 0);
+          const pct = total > 0 ? (value / total) * 100 : 0;
+          return (
+            <MeterBar
+              key={key}
+              label={`${label} (${value})`}
+              value={pct}
+              color={color}
+              height={8}
+            />
+          );
+        })}
+      </View>
+
+      {total === 0 && <Text style={styles.empty}>No detections recorded.</Text>}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
+    backgroundColor: colors.surface,
+    borderRadius: radius.M,
+    borderWidth: 1,
+    borderColor: colors.line,
     padding: 16,
-    marginTop: 16,
+    marginVertical: 8,
   },
-  title: { fontSize: 15, fontWeight: "700", color: "#111827", marginBottom: 10 },
-  row: { marginTop: 8 },
-  label: { fontSize: 12, color: "#6B7280", marginBottom: 4 },
-  track: {
-    height: 8,
-    backgroundColor: "#F3F4F6",
-    borderRadius: 999,
+  title: {
+    ...typography.headline,
+    color: colors.ink,
+    marginBottom: 12,
+  },
+  stackedTrack: {
+    height: 12,
+    flexDirection: "row",
+    backgroundColor: colors.bg,
+    borderRadius: radius.pill,
     overflow: "hidden",
+    marginBottom: 16,
   },
-  bar: { height: 8, borderRadius: 999 },
-  pct: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#374151",
-    marginTop: 2,
-    textAlign: "right",
+  barsList: {
+    marginTop: 4,
   },
-  empty: { color: "#9CA3AF", fontSize: 12, marginTop: 8 },
+  empty: {
+    ...typography.caption,
+    color: colors.inkMuted,
+    textAlign: "center",
+    marginVertical: 12,
+  },
 });
