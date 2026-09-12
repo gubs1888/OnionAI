@@ -125,26 +125,38 @@ def _yolo_analyze(image_path: str) -> dict:
         result = results[0]
         boxes_list = list(result.boxes)
         
-        # Filter out "group" boxes (a box that completely encloses another valid box)
-        filtered_boxes = []
+        # Filter out overlapping boxes that YOLO's NMS missed (e.g. one box inside another).
+        # We keep the box with the higher confidence to avoid dropping real onions.
+        boxes_to_drop = set()
         for i, box_a in enumerate(boxes_list):
+            if i in boxes_to_drop:
+                continue
             x1_a, y1_a, x2_a, y2_a = box_a.xyxy.tolist()[0]
             area_a = (x2_a - x1_a) * (y2_a - y1_a)
-            is_enclosing = False
+            conf_a = float(box_a.conf.item())
+            
             for j, box_b in enumerate(boxes_list):
-                if i == j: continue
+                if i == j or j in boxes_to_drop:
+                    continue
                 x1_b, y1_b, x2_b, y2_b = box_b.xyxy.tolist()[0]
                 area_b = (x2_b - x1_b) * (y2_b - y1_b)
-                if area_a > 1.3 * area_b:
-                    inter_x1, inter_y1 = max(x1_a, x1_b), max(y1_a, y1_b)
-                    inter_x2, inter_y2 = min(x2_a, x2_b), min(y2_a, y2_b)
-                    if inter_x2 > inter_x1 and inter_y2 > inter_y1:
-                        inter_area = (inter_x2 - inter_x1) * (inter_y2 - inter_y1)
-                        if inter_area > 0.8 * area_b:
-                            is_enclosing = True
+                conf_b = float(box_b.conf.item())
+                
+                inter_x1, inter_y1 = max(x1_a, x1_b), max(y1_a, y1_b)
+                inter_x2, inter_y2 = min(x2_a, x2_b), min(y2_a, y2_b)
+                if inter_x2 > inter_x1 and inter_y2 > inter_y1:
+                    inter_area = (inter_x2 - inter_x1) * (inter_y2 - inter_y1)
+                    smaller_area = min(area_a, area_b)
+                    
+                    # If one box is mostly inside the other (80% of the smaller area)
+                    if inter_area > 0.8 * smaller_area:
+                        if conf_a >= conf_b:
+                            boxes_to_drop.add(j)
+                        else:
+                            boxes_to_drop.add(i)
                             break
-            if not is_enclosing:
-                filtered_boxes.append(box_a)
+                            
+        filtered_boxes = [box for i, box in enumerate(boxes_list) if i not in boxes_to_drop]
 
         for box in filtered_boxes:
             cls_id = int(box.cls.item())
@@ -152,9 +164,9 @@ def _yolo_analyze(image_path: str) -> dict:
             class_name_str = str(name).lower()
             conf_val = float(box.conf.item())
             
-            # Hackathon Demo Fix: Prevent dried roots from being misclassified as rot/sprouted 
-            # by overriding low-confidence defect predictions back to a healthy 'onion'.
-            if class_name_str != "onion" and conf_val < 0.40:
+            # Hackathon Demo Fix: Prevent dried roots/dark skin from being misclassified as rot/sprouted 
+            # by overriding defect predictions back to a healthy 'onion' if confidence is not extremely high.
+            if class_name_str != "onion" and conf_val < 0.80:
                 class_name_str = "onion"
                 cls_id = CLASS_NAME_TO_ID.get("onion", 0)
                 
@@ -197,36 +209,66 @@ def _demo_analyze(image_path: str) -> dict:
     seed = int.from_bytes(hashlib.sha256(image_bytes).digest()[:8], "big")
     rng = random.Random(seed)
 
-    n_onions = rng.randint(10, 60)
+    # Read actual image dimensions (with EXIF orientation)
+    img_w, img_h = 1280, 960
+    try:
+        from PIL import Image, ImageOps
+        with Image.open(image_path) as img:
+            img_w, img_h = ImageOps.exif_transpose(img).size
+    except Exception:
+        pass
+
+    # Realistic demo count: 3 to 8 onions per photo
+    n_onions = rng.randint(3, 8)
     detections: list[dict] = []
-    for _ in range(n_onions):
-        if rng.random() < 0.22:  # ~22% defective in demo data
-            # Distribute across all 7 defect classes (NCCF-aligned weights)
+    
+    # Scale box sizes relative to image dimensions
+    min_dim = min(img_w, img_h)
+    box_w = max(60, int(min_dim * 0.20))
+    box_h = max(60, int(min_dim * 0.20))
+
+    # Grid arrangement across the actual image to prevent crowding
+    cols = max(2, int(img_w / (box_w * 1.3)))
+    rows = max(2, int(img_h / (box_h * 1.3)))
+    grid_cells = [(r, c) for r in range(rows) for c in range(cols)]
+    rng.shuffle(grid_cells)
+
+    for i in range(min(n_onions, len(grid_cells))):
+        r, c = grid_cells[i]
+        x_base = int((c + 0.15) * (img_w / cols))
+        y_base = int((r + 0.15) * (img_h / rows))
+        
+        bw = rng.randint(int(box_w * 0.85), int(box_w * 1.15))
+        bh = rng.randint(int(box_h * 0.85), int(box_h * 1.15))
+        x1 = max(5, min(img_w - bw - 5, x_base))
+        y1 = max(5, min(img_h - bh - 5, y_base))
+        x2 = min(img_w - 5, x1 + bw)
+        y2 = min(img_h - 5, y1 + bh)
+
+        if rng.random() < 0.25:  # ~25% defective in demo data
             class_id = rng.choices(
                 [1, 2, 3, 4, 5, 6, 7],
                 weights=[0.20, 0.10, 0.15, 0.10, 0.20, 0.15, 0.10],
             )[0]
-            confidence = round(rng.uniform(0.60, 0.95), 4)
+            confidence = round(rng.uniform(0.65, 0.95), 4)
         else:
             class_id = 0
-            confidence = round(rng.uniform(0.70, 0.98), 4)
+            confidence = round(rng.uniform(0.75, 0.98), 4)
 
-        w = rng.randint(40, 150)
-        h = rng.randint(40, 150)
-        x1 = rng.randint(5, 640 - w - 5)
-        y1 = rng.randint(5, 480 - h - 5)
         detections.append(
             {
                 "class_name": CLASS_NAMES[class_id],
                 "class_id": class_id,
                 "confidence": confidence,
-                "bbox": [x1, y1, x1 + w, y1 + h],
+                "bbox": [x1, y1, x2, y2],
             }
         )
 
     elapsed_ms = (time.perf_counter() - start) * 1000
     return {
         "detections": detections,
+        "image_width": img_w,
+        "image_height": img_h,
         "model_version": "demo-v0",
         "is_demo": True,
         "inference_ms": round(elapsed_ms, 1),

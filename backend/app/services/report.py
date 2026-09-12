@@ -150,6 +150,12 @@ def generate_report(assessment, out_dir: Path | None = None) -> Path:
                             "fresh_roots": (0, 128, 128),# Teal
                         }
                         # Draw detections
+                        img_h, img_w = img_array.shape[:2]
+                        min_dim = min(img_w, img_h)
+                        thickness = max(1, int(min_dim / 400))
+                        font_scale = max(0.5, round(min_dim / 900.0, 2))
+                        step_offset = int(30 * font_scale)
+
                         y_offsets = {}  # Keep track of y coordinates to avoid text overlap
                         debug_data = [["ID", "Class", "Conf", "Diam (px)", "Diam (mm)", "BBox (x1,y1,x2,y2)"]]
                         
@@ -159,28 +165,28 @@ def generate_report(assessment, out_dir: Path | None = None) -> Path:
                             
                             if det.bbox and len(det.bbox) == 4:
                                 x1, y1, x2, y2 = map(int, det.bbox)
-                                cv2.rectangle(img_array, (x1, y1), (x2, y2), color, 3)
+                                cv2.rectangle(img_array, (x1, y1), (x2, y2), color, thickness)
                                 
                                 # Format Label
                                 if getattr(det, 'estimated_size_mm', None) is not None:
                                     label = f"Onion {onion_id} - {det.estimated_size_mm}mm"
                                 else:
-                                    label = f"Onion {onion_id} - {det.class_name} {det.confidence:.2f}"
+                                    label = f"Onion {onion_id} - {format_defect_name(det.class_name)} {det.confidence:.2f}"
                                     
                                 # Vertical offset logic for overlapping labels and top-edge clipping
-                                text_y = y1 - 10
-                                if text_y < 25:
-                                    text_y = y1 + 35  # Drop text inside the box if it hits the top edge
+                                text_y = y1 - int(8 * font_scale)
+                                if text_y < step_offset:
+                                    text_y = y1 + step_offset  # Drop text inside the box if it hits the top edge
                                 
                                 # Check if a label was already drawn near this Y coordinate for this X region
-                                key = (x1 // 50, text_y // 20)
+                                key = (x1 // max(20, int(img_w / 10)), text_y // max(15, step_offset))
                                 if key in y_offsets:
-                                    text_y += 35 * y_offsets[key]
+                                    text_y += step_offset * y_offsets[key]
                                     y_offsets[key] += 1
                                 else:
                                     y_offsets[key] = 1
                                     
-                                cv2.putText(img_array, label, (x1, text_y), cv2.FONT_HERSHEY_SIMPLEX, 1.5, color, 3)
+                                cv2.putText(img_array, label, (x1, text_y), cv2.FONT_HERSHEY_SIMPLEX, font_scale, color, thickness)
                             
                             # Add to debug table
                             conf_str = f"{det.confidence:.2f}"
