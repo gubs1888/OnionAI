@@ -57,10 +57,24 @@ def init_db() -> None:
     for the MVP. A proper Alembic migration chain can replace this later
     (TEAM B) without touching endpoint code.
     """
+    global engine, SessionLocal
     # Import for the side effect of registering every model on Base.metadata.
     from app.db import base as _models  # noqa: F401
 
-    Base.metadata.create_all(bind=engine)
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as exc:
+        print(f"[db] WARN: Could not connect to primary DB ({exc}). Falling back to SQLite.")
+        sqlite_path = BACKEND_ROOT / "onion_quality_fallback.db"
+        sqlite_url = f"sqlite:///{sqlite_path}"
+        engine = create_engine(
+            sqlite_url,
+            connect_args={"check_same_thread": False},
+            pool_pre_ping=True,
+            future=True,
+        )
+        SessionLocal.configure(bind=engine)
+        Base.metadata.create_all(bind=engine)
 
 
 # Where uploaded images live relative to the backend root (used by static mount)

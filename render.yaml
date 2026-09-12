@@ -4,7 +4,7 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: free
-    region: singapore
+    region: oregon
     envVars:
       - key: DEMO_MODE
         value: "true"
@@ -20,5 +20,6 @@ services:
 databases:
   - name: onion-postgres
     plan: free
+    region: oregon
     databaseName: onion_quality
     user: onion
