@@ -277,18 +277,20 @@ export async function analyzeImage(imageUri: string, batchCode?: string, distanc
  * the just-finished analysis, then the backend, then MOCK.
  */
 export async function getAssessment(batchCode: string): Promise<Assessment> {
-  if (lastAssessment && lastAssessment.batch_id === batchCode) {
-    return lastAssessment;
-  }
   try {
-    return await request<Assessment>(`/api/batches/${encodeURIComponent(batchCode)}/assessment`);
+    const assessment = await request<Assessment>(`/api/batches/${encodeURIComponent(batchCode)}/assessment`);
+    lastAssessment = assessment;
+    return assessment;
   } catch (err) {
     if (err instanceof ApiError) {
       console.warn("[api] getAssessment server error:", err.code, err.message);
       throw err;
     }
+    if (lastAssessment && lastAssessment.batch_id === batchCode) {
+      return lastAssessment;
+    }
     console.warn("[api] getAssessment network error — MOCK fallback:", (err as Error).message);
-    return lastAssessment ?? buildMockAssessment(batchCode);
+    return buildMockAssessment(batchCode);
   }
 }
 

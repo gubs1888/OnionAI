@@ -130,9 +130,11 @@ if dist_dir.exists():
     if (dist_dir / "assets").exists():
         app.mount("/assets", StaticFiles(directory=str(dist_dir / "assets")), name="assets")
 
+    NO_CACHE_HEADERS = {"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"}
+
     @app.get("/", include_in_schema=False)
     async def serve_index():
-        return FileResponse(dist_dir / "index.html")
+        return FileResponse(dist_dir / "index.html", headers=NO_CACHE_HEADERS)
 
     @app.get("/{full_path:path}", include_in_schema=False)
     async def serve_spa(request: Request, full_path: str):
@@ -147,7 +149,7 @@ if dist_dir.exists():
         target_file = dist_dir / full_path
         if target_file.is_file():
             return FileResponse(target_file)
-        return FileResponse(dist_dir / "index.html")
+        return FileResponse(dist_dir / "index.html", headers=NO_CACHE_HEADERS)
 else:
     @app.get("/", tags=["meta"], summary="Service banner")
     def root() -> dict:
