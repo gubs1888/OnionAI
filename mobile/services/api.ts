@@ -283,7 +283,11 @@ export async function getAssessment(batchCode: string): Promise<Assessment> {
   try {
     return await request<Assessment>(`/api/batches/${encodeURIComponent(batchCode)}/assessment`);
   } catch (err) {
-    console.warn("[api] getAssessment failed — MOCK fallback:", (err as Error).message);
+    if (err instanceof ApiError) {
+      console.warn("[api] getAssessment server error:", err.code, err.message);
+      throw err;
+    }
+    console.warn("[api] getAssessment network error — MOCK fallback:", (err as Error).message);
     return lastAssessment ?? buildMockAssessment(batchCode);
   }
 }

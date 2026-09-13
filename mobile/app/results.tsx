@@ -13,7 +13,7 @@ import MeterBar from "../components/ui/MeterBar";
 import SectionTitle from "../components/ui/SectionTitle";
 import { SkeletonCard } from "../components/ui/Skeleton";
 import StatTile from "../components/ui/StatTile";
-import { getAssessment } from "../services/api";
+import { getAssessment, ApiError } from "../services/api";
 import { colors, layout, radius, shadows, typography } from "../theme";
 import { Assessment } from "../types/assessment";
 
@@ -25,10 +25,54 @@ export default function ResultsScreen() {
     : params.batchCode;
   const batchCode = pBatchCode || "DEMO-001";
   const [assessment, setAssessment] = useState<Assessment | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getAssessment(batchCode).then(setAssessment);
+    setError(null);
+    getAssessment(batchCode)
+      .then(setAssessment)
+      .catch((err) => {
+        if (err instanceof ApiError) {
+          setError(err.message);
+        } else {
+          setError("Could not load assessment details. Try analyzing this batch.");
+        }
+      });
   }, [batchCode]);
+
+  if (error) {
+    return (
+      <ScrollView style={styles.screen} contentContainerStyle={styles.centerContainer}>
+        <View style={styles.webWrapper}>
+          <Card style={{ padding: 24, alignItems: "center" }}>
+            <Banner variant="error" message="Assessment Not Found" />
+            <Text style={{ ...typography.body, color: colors.ink, textAlign: "center", marginVertical: 16 }}>
+              {error}
+            </Text>
+            <Button
+              label="📷 Capture Photo for this Batch"
+              onPress={() =>
+                router.push({
+                  pathname: "/camera",
+                  params: { batchCode },
+                })
+              }
+              variant="primary"
+              size="lg"
+              style={{ width: "100%", marginBottom: 10 }}
+            />
+            <Button
+              label="← Back to Home"
+              onPress={() => router.dismissTo("/")}
+              variant="secondary"
+              size="md"
+              style={{ width: "100%" }}
+            />
+          </Card>
+        </View>
+      </ScrollView>
+    );
+  }
 
   if (!assessment) {
     return (
