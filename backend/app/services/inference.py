@@ -88,6 +88,9 @@ def _load_model():
                 "Set DEMO_MODE=true or train a model (see ml/README.md)."
             )
     try:
+        import torch
+        torch.set_grad_enabled(False)
+        torch.set_num_threads(1)
         from ultralytics import YOLO  # imported lazily — backend stays light
     except ImportError as exc:  # pragma: no cover
         raise InferenceError(
@@ -104,22 +107,24 @@ def _yolo_analyze(image_path: str) -> dict:
     model = _load_model()
     start = time.perf_counter()
     try:
+        import torch
         import numpy as np
         from PIL import Image, ImageOps
 
-        try:
-            with Image.open(image_path) as img:
-                img_upright = ImageOps.exif_transpose(img).convert("RGB")
-                # YOLO expects BGR format. Convert RGB to BGR using slicing.
-                source = np.array(img_upright)[:, :, ::-1]
-        except Exception:
-            source = image_path
+        with torch.no_grad():
+            try:
+                with Image.open(image_path) as img:
+                    img_upright = ImageOps.exif_transpose(img).convert("RGB")
+                    # YOLO expects BGR format. Convert RGB to BGR using slicing.
+                    source = np.array(img_upright)[:, :, ::-1]
+            except Exception:
+                source = image_path
 
-        # Run prediction with conf=0.25 (standard threshold to avoid noise)
-        results = model.predict(source=source, conf=0.25, iou=0.60, agnostic_nms=True, verbose=False)
-        # Fallback to conf=0.10 if no objects detected at 0.25
-        if results and len(results[0].boxes) == 0:
-            results = model.predict(source=source, conf=0.10, iou=0.60, agnostic_nms=True, verbose=False)
+            # Run prediction with conf=0.25 (standard threshold to avoid noise)
+            results = model.predict(source=source, conf=0.25, iou=0.60, agnostic_nms=True, verbose=False)
+            # Fallback to conf=0.10 if no objects detected at 0.25
+            if results and len(results[0].boxes) == 0:
+                results = model.predict(source=source, conf=0.10, iou=0.60, agnostic_nms=True, verbose=False)
     except Exception as exc:  # never leak a fake result on failure
         raise InferenceError(f"YOLO inference failed: {exc}") from exc
     elapsed_ms = (time.perf_counter() - start) * 1000

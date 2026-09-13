@@ -60,59 +60,46 @@ def estimate_sizes(
         # Use min to avoid massive overestimation if YOLO box spans two onions
         major_axis_px = min(width_px, height_px)
         
-        # Attempt OpenCV GrabCut to accurately snap bbox to the onion
+        # Attempt fast OpenCV GrabCut refinement for accurate bbox snapping
         if img_bgr is not None:
             try:
                 h_img, w_img = img_bgr.shape[:2]
                 cx1, cx2 = max(0, int(x1)), min(w_img, int(x2))
                 cy1, cy2 = max(0, int(y1)), min(h_img, int(y2))
                 
-                if cx2 > cx1 + 10 and cy2 > cy1 + 10:
+                # Only run GrabCut on reasonably sized regions and limit ROI resolution to max 200px
+                if cx2 > cx1 + 15 and cy2 > cy1 + 15:
                     roi = img_bgr[cy1:cy2, cx1:cx2].copy()
+                    roi_h, roi_w = roi.shape[:2]
+                    scale_factor = 1.0
+                    if max(roi_h, roi_w) > 200:
+                        scale_factor = 200.0 / max(roi_h, roi_w)
+                        roi = cv2.resize(roi, (int(roi_w * scale_factor), int(roi_h * scale_factor)), interpolation=cv2.INTER_AREA)
                     
                     mask = np.zeros(roi.shape[:2], np.uint8)
                     bgdModel = np.zeros((1, 65), np.float64)
                     fgdModel = np.zeros((1, 65), np.float64)
                     
-                    # Define a rect slightly smaller than ROI. The corners of the bounding box
-                    # are almost certainly background (especially with round onions).
-                    rect = (3, 3, roi.shape[1] - 6, roi.shape[0] - 6)
-                    
-                    # Run GrabCut (3 iterations is usually enough for a tight snap)
-                    import cv2
-                    if hasattr(cv2, "setRNGSeed"):
-                        cv2.setRNGSeed(0) # Ensure deterministic GMM clustering
-                    cv2.grabCut(roi, mask, rect, bgdModel, fgdModel, 3, cv2.GC_INIT_WITH_RECT)
-                    
-                    # Where mask is 2 (PR_BGD) or 0 (BGD), set to 0, else 1
-                    mask2 = np.where((mask == 2) | (mask == 0), 0, 1).astype('uint8')
-                    
-                    # Post-process mask to remove small noise
-                    kernel = np.ones((5, 5), np.uint8)
-                    mask2 = cv2.morphologyEx(mask2, cv2.MORPH_OPEN, kernel)
-                    mask2 = cv2.morphologyEx(mask2, cv2.MORPH_CLOSE, kernel)
-                    
-                    contours, _ = cv2.findContours(mask2, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                    
-                    if contours:
-                        largest_contour = max(contours, key=cv2.contourArea)
+                    if roi.shape[1] > 10 and roi.shape[0] > 10:
+                        rect = (2, 2, roi.shape[1] - 4, roi.shape[0] - 4)
+                        import cv2
+                        if hasattr(cv2, "setRNGSeed"):
+                            cv2.setRNGSeed(0)
+                        cv2.grabCut(roi, mask, rect, bgdModel, fgdModel, 1, cv2.GC_INIT_WITH_RECT)
                         
-                        # Get bounding box of the actual segmented onion
-                        bx, by, bw, bh = cv2.boundingRect(largest_contour)
+                        mask2 = np.where((mask == 2) | (mask == 0), 0, 1).astype('uint8')
+                        contours, _ = cv2.findContours(mask2, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
                         
-                        # Only accept the snapped box if it's reasonably sized (not just a tiny piece of noise)
-                        if bw > 0.2 * (cx2 - cx1) and bh > 0.2 * (cy2 - cy1):
-                            new_x1 = cx1 + bx
-                            new_y1 = cy1 + by
-                            new_x2 = new_x1 + bw
-                            new_y2 = new_y1 + bh
+                        if contours:
+                            largest_contour = max(contours, key=cv2.contourArea)
+                            bx, by, bw, bh = cv2.boundingRect(largest_contour)
                             
-                            det["bbox"] = [new_x1, new_y1, new_x2, new_y2]
-                            
-                            # Use the new tightened dimensions
-                            major_axis_px = min(bw, bh)
+                            # Scale back coordinates to original resolution
+                            bw_orig = int(bw / scale_factor)
+                            bh_orig = int(bh / scale_factor)
+                            if bw_orig > 0.2 * (cx2 - cx1) and bh_orig > 0.2 * (cy2 - cy1):
+                                major_axis_px = min(bw_orig, bh_orig)
             except Exception as e:
-                print(f"GrabCut failed: {e}")
                 pass
         
         if pixel_to_mm is not None:
