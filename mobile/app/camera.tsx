@@ -24,7 +24,11 @@ export default function CameraScreen() {
     setCapturedImageUri(uri);
     router.replace({
       pathname: "/analyzing",
-      params: { ...(batchCode ? { batchCode } : {}), distanceCm: cameraDistance.toString() },
+      params: {
+        ...(batchCode ? { batchCode } : {}),
+        distanceCm: cameraDistance.toString(),
+        ...(uri.length < 2000 ? { uri: encodeURIComponent(uri) } : {}),
+      },
     });
   };
 
