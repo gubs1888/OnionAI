@@ -24,7 +24,7 @@ export default function CameraScreen() {
     setCapturedImageUri(uri);
     router.replace({
       pathname: "/analyzing",
-      params: { batchCode: batchCode ?? "DEMO-001", distanceCm: cameraDistance.toString() },
+      params: { ...(batchCode ? { batchCode } : {}), distanceCm: cameraDistance.toString() },
     });
   };
 
@@ -50,7 +50,7 @@ export default function CameraScreen() {
         <View style={styles.topBar}>
           <View style={styles.batchInfo}>
             <Text style={styles.batchLabel} numberOfLines={1}>
-              Batch: {batchCode ?? "DEMO-001"} {batchName ? `· ${batchName}` : ""}
+              Batch: {batchCode ?? "Walk-in Batch"} {batchName ? `· ${batchName}` : ""}
             </Text>
           </View>
           <Pressable onPress={() => router.back()} style={styles.closeBtn} hitSlop={12}>
