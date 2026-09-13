@@ -130,6 +130,10 @@ if dist_dir.exists():
     if (dist_dir / "assets").exists():
         app.mount("/assets", StaticFiles(directory=str(dist_dir / "assets")), name="assets")
 
+    @app.get("/", include_in_schema=False)
+    async def serve_index():
+        return FileResponse(dist_dir / "index.html")
+
     @app.get("/{full_path:path}", include_in_schema=False)
     async def serve_spa(request: Request, full_path: str):
         if (

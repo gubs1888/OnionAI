@@ -202,8 +202,19 @@ export async function analyzeImage(imageUri: string, batchCode?: string, distanc
   try {
     if (Platform.OS === "web") {
       const form = new FormData();
-      const resp = await fetch(imageUri);
-      const blob = await resp.blob();
+      let blob: Blob;
+      if (imageUri.startsWith("data:") || imageUri.startsWith("blob:") || imageUri.startsWith("http")) {
+        const resp = await fetch(imageUri);
+        blob = await resp.blob();
+      } else {
+        const byteCharacters = atob(imageUri);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        blob = new Blob([byteArray], { type: "image/jpeg" });
+      }
       form.append("image", blob, "onions.jpg");
       if (batchCode) form.append("batch_id", batchCode);
       if (distanceCm) form.append("distance_cm", distanceCm.toString());
