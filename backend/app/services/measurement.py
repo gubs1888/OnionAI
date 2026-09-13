@@ -80,7 +80,8 @@ def estimate_sizes(
                     
                     # Run GrabCut (3 iterations is usually enough for a tight snap)
                     import cv2
-                    cv2.setRNGSeed(0) # Ensure deterministic GMM clustering
+                    if hasattr(cv2, "setRNGSeed"):
+                        cv2.setRNGSeed(0) # Ensure deterministic GMM clustering
                     cv2.grabCut(roi, mask, rect, bgdModel, fgdModel, 3, cv2.GC_INIT_WITH_RECT)
                     
                     # Where mask is 2 (PR_BGD) or 0 (BGD), set to 0, else 1

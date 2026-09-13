@@ -134,15 +134,22 @@ class AnalyzeResponse(AssessmentOut):
     detections: list[DetectionOut] = Field(default_factory=list)
 
 
-def to_assessment_out(assessment: Assessment) -> AssessmentOut:
+def to_assessment_out(assessment: Assessment, batch_code_override: str | None = None) -> AssessmentOut:
     """Explicit ORM -> contract mapping.
 
     NOTE: `batch_id` in the contract is the human-readable batch CODE (string),
     while the ORM column is an integer FK — hence the explicit mapping.
     """
+    if batch_code_override:
+        batch_code = batch_code_override
+    elif assessment.batch is not None and getattr(assessment.batch, "batch_code", None):
+        batch_code = assessment.batch.batch_code
+    else:
+        batch_code = f"ON-{assessment.batch_id:04d}"
+
     return AssessmentOut(
         assessment_id=assessment.id,
-        batch_id=assessment.batch.batch_code,
+        batch_id=batch_code,
         total_onions=assessment.total_onions,
         healthy=assessment.healthy,
         damaged=assessment.damaged,

@@ -261,7 +261,7 @@ def analyze_image_endpoint(
     db.refresh(batch)
 
     # 7. Contract response -----------------------------------------------------
-    base = to_assessment_out(assessment).model_dump()
+    base = to_assessment_out(assessment, batch_code_override=batch.batch_code).model_dump()
     return AnalyzeResponse(
         **base,
         image_id=image_row.id,
