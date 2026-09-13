@@ -79,10 +79,14 @@ def _load_model():
 
     model_path = Path(settings.model_path)
     if not model_path.exists():
-        raise InferenceError(
-            f"Model file not found at '{model_path}'. "
-            "Set DEMO_MODE=true or train a model (see ml/README.md)."
-        )
+        alt_path = REPO_ROOT / "ml" / "models" / "onion_yolo.pt"
+        if alt_path.exists():
+            model_path = alt_path
+        else:
+            raise InferenceError(
+                f"Model file not found at '{model_path}'. "
+                "Set DEMO_MODE=true or train a model (see ml/README.md)."
+            )
     try:
         from ultralytics import YOLO  # imported lazily — backend stays light
     except ImportError as exc:  # pragma: no cover
