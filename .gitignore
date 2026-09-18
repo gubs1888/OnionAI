@@ -51,6 +51,20 @@ ml/dataset/raw/*
 ml/dataset/processed/*
 !ml/dataset/raw/.gitkeep
 !ml/dataset/processed/.gitkeep
+# Large local-only data: rebuilt via fetch_datasets/merge_datasets; Colab zip
+# lives outside the repo. Holdout IMAGES regenerable from backend/uploads via
+# ml/holdout_staged/manifest.json -- labels + manifest ARE tracked.
+ml/dataset_raw/
+ml/dataset_v2/
+ml/onion_dataset/
+ml/onion_dataset.zip
+ml/holdout_staged/images/
+runs/
+yolo11n.pt
+yolo11n/
+# Local-only runtime + derived data (rebuild via scripts/)
+logs/
+ml/dataset_synth/
 
 # ---------- OS / Editor ----------
 .DS_Store

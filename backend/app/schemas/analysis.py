@@ -70,6 +70,11 @@ class DetectionOut(BaseModel):
     estimated_size_mm: float | None = Field(
         default=None, description="Estimated bulb diameter in mm (demo estimator for now)"
     )
+    size_calibrated: bool = Field(
+        default=False,
+        description="True only when mm came from a calibrated device profile. "
+        "False (with null mm) means uncalibrated — client should prompt for a reference.",
+    )
 
 
 class AssessmentOut(BaseModel):

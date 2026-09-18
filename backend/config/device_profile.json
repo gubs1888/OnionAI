@@ -1,0 +1,8 @@
+{
+  "configured": true,
+  "phone": "demo-phone-whatsapp",
+  "ref_distance_cm": 30.0,
+  "mm_per_pixel_at_ref": 0.2045,
+  "calibrated_at": "2026-09-18T05:12:18.279815+00:00",
+  "note": "One-time ruler calibration. Demo photos must be taken at a known distance."
+}

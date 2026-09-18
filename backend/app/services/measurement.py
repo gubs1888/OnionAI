@@ -36,14 +36,36 @@ def estimate_sizes(
 
     cfg = config or load_config()
     out: list[dict] = []
+
+    def _device_profile() -> dict:
+        """Phone scale profile (backend/config/device_profile.json).
+
+        Read per call (tiny file) so calibration takes effect without restart.
+        Returns {} when unconfigured.
+        """
+        import json
+        from pathlib import Path
+        try:
+            p = Path(__file__).parents[2] / "config" / "device_profile.json"
+            prof = json.loads(p.read_text())
+            return prof if prof.get("configured") else {}
+        except Exception:
+            return {}
     
     # Calculate physical width of the entire image if distance is provided.
-    # We use a calibrated Field-of-View constant of 4.8 for standard portrait mode shots.
-    # This accounts for the narrower horizontal FOV of the sensor's short edge.
+    # Scale is trustworthy ONLY via a calibrated device profile (ruler photo
+    # at a fixed height -> scripts/calibrate_device.py). The old 4.8 "FOV
+    # constant" was a guess that produced 265mm onions; it is retired --
+    # without a profile the size is reported as uncalibrated (None).
     mm_per_pixel = None
-    if distance_cm is not None and image_width > 0:
-        total_fov_width_mm = 4.8 * distance_cm
-        mm_per_pixel = total_fov_width_mm / image_width
+    calibrated = pixel_to_mm is not None  # direct measurement is trusted
+    if distance_cm is not None and image_width > 0 and not calibrated:
+        prof = _device_profile()
+        if (prof.get("configured") and prof.get("mm_per_pixel_at_ref")
+                and prof.get("ref_distance_cm")):
+            mm_per_pixel = float(prof["mm_per_pixel_at_ref"]) * (
+                float(distance_cm) / float(prof["ref_distance_cm"]))
+            calibrated = True
 
     # Pre-load image for contour extraction if available
     img_bgr = None
@@ -104,16 +126,24 @@ def estimate_sizes(
         
         if pixel_to_mm is not None:
             size_mm = major_axis_px * pixel_to_mm
-        elif mm_per_pixel is not None:
+            det["diameter_px"] = round(major_axis_px, 1)
+            det["estimated_size_mm"] = round(max(0.0, size_mm), 1)
+            det["size_calibrated"] = True
+        elif mm_per_pixel is not None and calibrated:
             size_mm = major_axis_px * mm_per_pixel
+            det["diameter_px"] = round(major_axis_px, 1)
+            det["estimated_size_mm"] = round(max(0.0, size_mm), 1)
+            det["size_calibrated"] = True
         else:
-            # Fallback if no distance slider provided.
-            # Assume mm_per_pixel is roughly 0.18 for a standard crop/scale.
-            size_mm = major_axis_px * 0.18
-            
-        size_mm = max(0.0, size_mm)
-        det["diameter_px"] = round(major_axis_px, 1)
-        det["estimated_size_mm"] = round(size_mm, 1)
+            # No reference available (no coin/A4 in frame, no distance given).
+            # Do NOT fabricate millimetres from an assumed px scale -- that
+            # turned every close-up bulb into a 265mm monster and failed
+            # Grade A on healthy onions. Grading treats None as "size
+            # unjudged" (see grading.py, nccf_rule_engine.py); the client
+            # should prompt for a reference coin for full size grading.
+            det["diameter_px"] = round(major_axis_px, 1)
+            det["estimated_size_mm"] = None
+            det["size_calibrated"] = False
         out.append(det)
     return out
 
