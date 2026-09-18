@@ -60,11 +60,11 @@ predictions.
 cd /home/michael/onion-quality-ai
 
 export ROBOFLOW_API_KEY=...          # free account
-python fetch_datasets.py --out ml/dataset_raw
+python scripts/fetch_datasets.py --out ml/dataset_raw
 
 # verify every Universe project in the web UI before trusting its labels
-python merge_datasets.py --raw ml/dataset_raw --existing ml/dataset \
-                         --out ml/dataset_v2 --val-frac 0.2
+python scripts/merge_datasets.py --raw ml/dataset_raw --existing ml/dataset \
+                          --out ml/dataset_v2 --val-frac 0.2
 
 # label your own staged photos into ml/holdout_staged/{images,labels}/ first
 python train_v2.py --data ml/dataset_v2/data.yaml --epochs 120
