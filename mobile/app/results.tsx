@@ -159,7 +159,7 @@ export default function ResultsScreen() {
               style={styles.gridItem}
             />
             <StatTile
-              label="Undersized"
+              label="Undersized/Oversized"
               value={assessment.undersized}
               colorDot={colors.category.undersized}
               dimmed={assessment.undersized === 0}
